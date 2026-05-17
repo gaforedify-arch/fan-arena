@@ -68,3 +68,4 @@ supabase/seed.sql
 *.local
 *.tgz
 
+.env
