@@ -9,6 +9,7 @@ import {
 } from '../lib/supabase'
 import { C, GlassCard, Btn, Input, Spinner, SectionLabel } from '../components/UI'
 import { PLAYER_ROLES, DEFAULT_PLAYER_ROLE, formatPlayerRole } from '../lib/playerRoles'
+import QuizQuestionsManager from './QuizQuestionsManager'
 
 const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'edify2025'
 const ADMIN_SESSION_KEY = 'fan-arena-admin-authed'
@@ -297,6 +298,11 @@ function MatchesSection({ matches, teams, reload, flash }) {
                   background: match.predictions_open ? `${C.blue}20` : 'transparent',
                   color: match.predictions_open ? C.blue : C.muted, fontWeight: 700, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit',
                 }}>{match.predictions_open ? '✓ Predictions Open' : 'Open Predictions'}</button>
+                <button onClick={() => toggle(match, 'quiz_open')} style={{
+                  flex: 1, minWidth: 100, padding: '10px 0', borderRadius: 10, border: `1px solid ${match.quiz_open ? C.purple : C.border}`,
+                  background: match.quiz_open ? `${C.purple}20` : 'transparent',
+                  color: match.quiz_open ? C.purple : C.muted, fontWeight: 700, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit',
+                }}>{match.quiz_open ? '✓ Quiz Open' : 'Open Quiz'}</button>
               </div>
 
               {/* Score update */}
@@ -327,6 +333,8 @@ function MatchesSection({ matches, teams, reload, flash }) {
 
               {/* Questions */}
               <QuestionsManager match={match} onUpdated={reload} flash={flash} />
+
+              <QuizQuestionsManager match={match} onUpdated={reload} flash={flash} />
 
               {/* Payout */}
               {match.status === 'completed' && match.winner_team && (

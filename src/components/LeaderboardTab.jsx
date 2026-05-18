@@ -55,6 +55,7 @@ export default function LeaderboardTab() {
       <div className="ranks-hero">
         <Pill color={C.yellow}>LEADERBOARD</Pill>
         <h1 className="ranks-title">Who&apos;s dominating?</h1>
+        <p style={{ fontSize: 11, color: C.muted, marginTop: 8 }}>Same XP? Earlier fans rank higher (first come, first served).</p>
       </div>
 
       <div className="ranks-tabs" role="tablist">

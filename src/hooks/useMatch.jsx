@@ -20,9 +20,10 @@ export function MatchProvider({ slug, children }) {
 
   useEffect(() => {
     let cancelled = false
+    let isInitial = true
 
     async function resolve() {
-      setLoading(true)
+      if (isInitial) setLoading(true)
       try {
         if (!slug) {
           const current = await getNextMatch()
@@ -57,7 +58,10 @@ export function MatchProvider({ slug, children }) {
           setMatch(null)
         }
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) {
+          setLoading(false)
+          isInitial = false
+        }
       }
     }
 

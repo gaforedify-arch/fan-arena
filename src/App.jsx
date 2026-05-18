@@ -1,13 +1,25 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { AuthProvider, useAuth } from './hooks/useAuth'
 import { MatchProvider, useMatch, MATCH_STATE } from './hooks/useMatch'
 import { parseHash } from './lib/hashRouter'
 import LoginPage from './pages/LoginPage'
-import OnboardingPage from './pages/OnboardingPage'
-import ArenaShell from './pages/ArenaShell'
-import { WaitingPage, RedirectPage, NotFoundPage, MatchHomePage } from './pages/StatusPages'
-import AdminPanel from './admin/AdminPanel'
 import { C } from './components/UI'
+
+const OnboardingPage = lazy(() => import('./pages/OnboardingPage'))
+const ArenaShell = lazy(() => import('./pages/ArenaShell'))
+const AdminPanel = lazy(() => import('./admin/AdminPanel'))
+const MatchHomePage = lazy(() => import('./pages/StatusPages').then((m) => ({ default: m.MatchHomePage })))
+const RedirectPage = lazy(() => import('./pages/StatusPages').then((m) => ({ default: m.RedirectPage })))
+const NotFoundPage = lazy(() => import('./pages/StatusPages').then((m) => ({ default: m.NotFoundPage })))
+
+function LoadingScreen({ label = 'Loading arena...' }) {
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ width: 36, height: 36, border: '3px solid rgba(168,85,247,0.3)', borderTop: `3px solid ${C.purple}`, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+      <p style={{ color: C.muted, marginTop: 16, fontSize: 13 }}>{label}</p>
+    </div>
+  )
+}
 
 function AppInner() {
   const route = parseHash()
@@ -17,36 +29,57 @@ function AppInner() {
   const { user, profile, loading: authLoading } = useAuth()
   const { match, matchState, nextMatch, loading: matchLoading } = useMatch()
 
-  if (route.type === 'admin') return <AdminPanel />
-  if (authLoading) return <LoadingScreen />
+  if (route.type === 'admin') {
+    return (
+      <Suspense fallback={<LoadingScreen label="Loading admin..." />}>
+        <AdminPanel />
+      </Suspense>
+    )
+  }
+  if (authLoading) return <LoadingScreen label="Loading..." />
   if (!user) return <LoginPage />
-  if (!profile) return <OnboardingPage />
-  if (!slug) return <MatchHomePage />
+  if (!profile) {
+    return (
+      <Suspense fallback={<LoadingScreen label="Loading..." />}>
+        <OnboardingPage />
+      </Suspense>
+    )
+  }
+  if (!slug) {
+    return (
+      <Suspense fallback={<LoadingScreen />}>
+        <MatchHomePage />
+      </Suspense>
+    )
+  }
   if (matchLoading) return <LoadingScreen />
+
+  const arena = (
+    <Suspense fallback={<LoadingScreen />}>
+      <ArenaShell match={match} tab={tab} />
+    </Suspense>
+  )
 
   switch (matchState) {
     case MATCH_STATE.ACTIVE:
     case MATCH_STATE.NOT_STARTED:
-      return <ArenaShell match={match} tab={tab} />
+      return arena
     case MATCH_STATE.COMPLETED:
-      if (tab && tab !== 'home') {
-        return <ArenaShell match={match} tab={tab} />
-      }
-      return <RedirectPage match={match} nextMatch={nextMatch} />
+      if (tab && tab !== 'home') return arena
+      return (
+        <Suspense fallback={<LoadingScreen />}>
+          <RedirectPage match={match} nextMatch={nextMatch} />
+        </Suspense>
+      )
     case MATCH_STATE.NOT_FOUND:
-      return <NotFoundPage nextMatch={nextMatch} />
+      return (
+        <Suspense fallback={<LoadingScreen />}>
+          <NotFoundPage nextMatch={nextMatch} />
+        </Suspense>
+      )
     default:
-      return <ArenaShell match={match} tab={tab} />
+      return arena
   }
-}
-
-function LoadingScreen() {
-  return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ width: 36, height: 36, border: '3px solid rgba(168,85,247,0.3)', borderTop: `3px solid ${C.purple}`, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-      <p style={{ color: C.muted, marginTop: 16, fontSize: 13 }}>Loading arena...</p>
-    </div>
-  )
 }
 
 export default function App() {
@@ -99,6 +132,13 @@ export default function App() {
         .hub-xp-label { display: block; font-size: 8px; letter-spacing: 1px; color: ${C.muted}; font-weight: 700; text-transform: uppercase; }
         .hub-xp-val { font-size: 15px; font-weight: 900; color: ${C.yellow}; }
         .hub-meta-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 14px; }
+        .hub-event-line { font-size: 10px; color: ${C.muted}; text-align: center; margin-bottom: 10px; letter-spacing: 0.5px; font-weight: 600; }
+        .hub-108-live { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; padding: 12px 14px; border-radius: 14px; background: linear-gradient(135deg, rgba(239,68,68,0.15), rgba(168,85,247,0.12)); border: 1px solid rgba(239,68,68,0.35); text-decoration: none; color: inherit; transition: border-color 0.15s, transform 0.15s; }
+        .hub-108-live:active { transform: scale(0.99); border-color: rgba(239,68,68,0.55); }
+        .hub-108-live-icon { flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; background: #ef4444; color: #fff; font-size: 14px; display: flex; align-items: center; justify-content: center; font-weight: 900; box-shadow: 0 0 16px rgba(239,68,68,0.45); }
+        .hub-108-live-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .hub-108-live-text strong { font-size: 13px; font-weight: 800; color: #fff; }
+        .hub-108-live-text small { font-size: 10px; color: ${C.muted}; font-weight: 600; }
         .hub-greeting { font-size: 12px; color: ${C.muted}; font-weight: 600; }
         .hub-active-fans { text-align: right; line-height: 1.2; }
         .hub-active-label { display: block; font-size: 8px; letter-spacing: 2px; color: ${C.muted}; font-weight: 700; }
@@ -128,6 +168,60 @@ export default function App() {
         .hub-fan-rank { font-size: 16px; width: 24px; text-align: center; }
         .hub-fan-name { flex: 1; font-size: 13px; font-weight: 700; color: #fff; }
         .hub-fan-xp { font-size: 13px; font-weight: 900; color: ${C.yellow}; }
+
+        .promo-reveal { opacity: 0; transform: translateY(6px); transition: opacity 0.45s ease, transform 0.45s ease; pointer-events: none; }
+        .promo-reveal--in { opacity: 1; transform: none; pointer-events: auto; }
+        .rewards-page .rewards-header { text-align: center; margin-bottom: 20px; }
+        .rewards-page .rewards-header h2 { font-size: 22px; font-weight: 900; color: #fff; margin: 12px 0 6px; }
+        .rewards-page .rewards-header p { font-size: 13px; color: ${C.muted}; line-height: 1.6; margin: 0; }
+        .edify-promo-stack { display: flex; flex-direction: column; gap: 14px; margin-bottom: 14px; }
+        .edify-promo-stack--compact { gap: 8px; margin-bottom: 0; }
+        .edify-promo-card { background: ${C.card}; border: 1px solid ${C.border}; border-radius: 16px; overflow: hidden; }
+        .edify-promo-label { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 10px 12px 8px; border-bottom: 1px solid ${C.border}; }
+        .edify-promo-label-title { font-size: 12px; font-weight: 900; color: ${C.yellow}; letter-spacing: 0.3px; }
+        .edify-promo-label-sub { font-size: 10px; color: ${C.muted}; font-weight: 600; text-align: right; flex-shrink: 0; max-width: 52%; }
+        .edify-promo-body { padding: 12px; }
+        .edify-promo-hero-title { font-size: 14px; font-weight: 900; color: ${C.yellow}; margin: 0 0 12px; line-height: 1.35; letter-spacing: 0.2px; }
+        .edify-promo-block { margin-bottom: 14px; }
+        .edify-promo-block-label { font-size: 9px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: ${C.muted}; margin: 0 0 8px; }
+        .edify-promo-moments { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; }
+        .edify-promo-moments li { font-size: 11px; color: rgba(255,255,255,0.82); display: flex; align-items: center; gap: 6px; }
+        .edify-promo-moment-icon { font-size: 14px; flex-shrink: 0; }
+        .edify-promo-highlight { display: flex; gap: 10px; padding: 10px; border-radius: 12px; background: ${C.purple}12; border: 1px solid ${C.purple}35; margin-bottom: 12px; }
+        .edify-promo-highlight-icon { font-size: 22px; flex-shrink: 0; }
+        .edify-promo-highlight p { margin: 0 0 6px; font-size: 12px; color: #fff; font-weight: 700; }
+        .edify-promo-highlight p:last-child { margin-bottom: 0; }
+        .edify-promo-muted { font-size: 11px !important; color: ${C.muted} !important; font-weight: 500 !important; line-height: 1.55; }
+        .edify-promo-muted strong { color: rgba(255,255,255,0.75); }
+        .edify-promo-excited { font-size: 12px; color: ${C.orange}; font-weight: 700; margin: 0 0 14px; line-height: 1.5; }
+        .edify-promo-prizes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+        .edify-promo-prizes li { display: flex; align-items: center; gap: 10px; font-size: 12px; color: #fff; font-weight: 600; padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,0.04); border: 1px solid ${C.border}; }
+        .edify-promo-prizes li span:first-child { font-size: 18px; }
+        .edify-promo-rules { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+        .edify-promo-rules li { display: flex; align-items: flex-start; gap: 10px; font-size: 11px; color: rgba(255,255,255,0.78); line-height: 1.45; }
+        .edify-promo-rule-num { flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%; background: ${C.yellow}22; color: ${C.yellow}; font-size: 10px; font-weight: 900; display: flex; align-items: center; justify-content: center; }
+        .edify-promo-featured { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: linear-gradient(90deg, ${C.yellow}18, transparent); border: 1px solid ${C.yellow}40; }
+        .edify-promo-featured span { font-size: 22px; }
+        .edify-promo-featured p { margin: 0; font-size: 11px; font-weight: 700; color: ${C.yellow}; line-height: 1.45; }
+        .edify-promo-future { display: flex; flex-direction: column; gap: 12px; }
+        .edify-promo-future-row { display: flex; gap: 12px; align-items: flex-start; }
+        .edify-promo-future-icon { font-size: 28px; flex-shrink: 0; }
+        .edify-promo-future-row p { margin: 0; font-size: 12px; color: rgba(255,255,255,0.85); line-height: 1.55; }
+        .edify-promo-future-row strong { color: ${C.yellow}; }
+        .edify-promo-future-teaser { text-align: center; padding: 14px 12px; border-radius: 14px; background: linear-gradient(160deg, ${C.purple}22, ${C.blue}15); border: 1px solid ${C.purple}45; }
+        .edify-promo-future-badge { display: inline-block; font-size: 9px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: ${C.purple}; margin-bottom: 8px; }
+        .edify-promo-future-teaser h4 { margin: 0 0 8px; font-size: 16px; font-weight: 900; color: #fff; }
+        .edify-promo-compact .edify-promo-hero-title { font-size: 13px; margin-bottom: 8px; }
+        .edify-promo-lead { font-size: 11px; color: ${C.muted}; margin: 0 0 10px; line-height: 1.5; }
+        .edify-promo-lead strong { color: #e8e4ff; }
+        .edify-promo-prize-chips { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+        .edify-promo-prize-chips li { font-size: 11px; color: rgba(255,255,255,0.8); display: flex; align-items: center; gap: 8px; }
+        .edify-promo-cta { padding: 0 2px 4px; }
+        .edify-promo-cta p { font-size: 11px; color: ${C.muted}; line-height: 1.55; margin: 0 0 10px; }
+        .edify-promo-cta p strong { color: #e8e4ff; font-weight: 800; }
+        .edify-promo-btn { display: inline-flex; align-items: center; justify-content: center; width: 100%; padding: 11px 16px; border-radius: 12px; background: linear-gradient(135deg, ${C.purple}, #6d28d9); color: #fff; font-size: 13px; font-weight: 800; text-decoration: none; border: 1px solid ${C.purple}80; box-shadow: 0 4px 20px ${C.purple}35; box-sizing: border-box; }
+        .edify-promo-btn--inline { width: auto; font-size: 12px; padding: 8px 14px; }
+        .edify-promo-btn:active { transform: scale(0.98); }
 
         .ranks-page { padding-top: 8px; }
         .ranks-hero { text-align: center; margin-bottom: 16px; }

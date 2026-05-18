@@ -10,6 +10,8 @@ import PredictTab from '../components/PredictTab'
 import ReactionsTab from '../components/ReactionsTab'
 import PlayerVoteTab from '../components/PlayerVoteTab'
 import LeaderboardTab from '../components/LeaderboardTab'
+import QuizTab from '../components/QuizTab'
+import { formatArenaStatusPill } from '../lib/matchLabel'
 
 export default function ArenaShell({ match, tab }) {
   const { profile } = useAuth()
@@ -41,13 +43,15 @@ export default function ArenaShell({ match, tab }) {
         return <LeaderboardTab />
       case 'rewards':
         return <RewardsTab />
+      case 'quiz':
+        return <QuizTab match={match} />
       default:
         return <ArenaHubPage match={match} onNavigate={onNav} onLogout={handleSignOut} />
     }
   }
 
   const showCompactHeader = activeTab !== 'home' && activeTab !== 'ranks'
-  const navActive = ['predict', 'players'].includes(activeTab) ? 'home' : activeTab
+  const navActive = ['predict', 'players', 'quiz'].includes(activeTab) ? 'home' : activeTab
 
   return (
     <div className="arena-shell">
@@ -55,7 +59,8 @@ export default function ArenaShell({ match, tab }) {
         <header className="arena-compact-header">
           <Pill color={match.status === 'live' ? C.green : C.purple}>
             {match.status === 'live' && <LiveDot color={C.green} />}
-            {match.team_a?.short_name} vs {match.team_b?.short_name}
+            <span style={{ display: 'block', fontSize: 9, letterSpacing: 0.5 }}>{formatArenaStatusPill(match)}</span>
+            <span>{match.team_a?.short_name} vs {match.team_b?.short_name}</span>
           </Pill>
           <div className="arena-compact-actions">
             <div style={{ textAlign: 'right' }}>

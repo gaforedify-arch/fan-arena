@@ -53,7 +53,7 @@ BEGIN
       AND p.xp_awarded = false
   LOOP
     IF r.answer = v_correct THEN
-      PERFORM award_xp(r.user_id, v_match_id, 75, 'prediction_correct');
+      PERFORM award_xp(r.user_id, v_match_id, 75, 'correct_prediction');
       UPDATE predictions
       SET is_correct = true, xp_awarded = true
       WHERE id = r.id;
@@ -122,7 +122,7 @@ BEGIN
       AND team_picked = v_winner
       AND xp_awarded = false
   LOOP
-    PERFORM award_xp(r_vote.user_id, p_match_id, 100, 'vote_correct');
+    PERFORM award_xp(r_vote.user_id, p_match_id, 100, 'correct_vote');
     UPDATE votes SET xp_awarded = true WHERE id = r_vote.id;
     v_votes_paid := v_votes_paid + 1;
   END LOOP;

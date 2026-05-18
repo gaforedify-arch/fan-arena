@@ -8,6 +8,7 @@ import {
   readCachedProfile,
   writeCachedProfile,
   saveDeviceSession,
+  consumeAuthHash,
 } from '../lib/supabase'
 
 const AuthContext = createContext(null)
@@ -17,13 +18,29 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  async function loadProfile(authUser) {
+  async function loadProfile(authUser, { blockUI = true } = {}) {
     setUser(authUser)
-    setLoading(true)
 
     const cached = readCachedProfile(authUser.id)
-    if (cached && isProfileComplete(cached)) {
+    const hasCompleteCache = cached && isProfileComplete(cached)
+
+    if (hasCompleteCache) {
       setProfile(cached)
+      if (!blockUI) {
+        fetchProfileByUserId(authUser.id)
+          .then((prof) => {
+            if (prof) {
+              setProfile(prof)
+              writeCachedProfile(prof)
+            }
+          })
+          .catch(() => {})
+        return
+      }
+    }
+
+    if (!hasCompleteCache || blockUI) {
+      setLoading(true)
     }
 
     try {
@@ -31,11 +48,11 @@ export function AuthProvider({ children }) {
       if (prof) {
         setProfile(prof)
         writeCachedProfile(prof)
-      } else if (!cached || !isProfileComplete(cached)) {
+      } else if (!hasCompleteCache) {
         setProfile(null)
       }
     } catch {
-      if (!cached || !isProfileComplete(cached)) setProfile(null)
+      if (!hasCompleteCache) setProfile(null)
     } finally {
       setLoading(false)
     }
@@ -46,13 +63,23 @@ export function AuthProvider({ children }) {
 
     async function init() {
       try {
+        await consumeAuthHash()
         const { data: { session } } = await supabase.auth.getSession()
         if (!active) return
         if (session?.user) {
           if (session.user.email && session.refresh_token) {
             saveDeviceSession(session.user.email, session)
           }
-          await loadProfile(session.user)
+          const cached = readCachedProfile(session.user.id)
+          const fastPath = cached && isProfileComplete(cached)
+          if (fastPath) {
+            setUser(session.user)
+            setProfile(cached)
+            setLoading(false)
+            loadProfile(session.user, { blockUI: false })
+          } else {
+            await loadProfile(session.user, { blockUI: true })
+          }
         } else {
           setUser(null)
           setProfile(null)
@@ -69,12 +96,15 @@ export function AuthProvider({ children }) {
       if (session?.user?.email && session.refresh_token) {
         saveDeviceSession(session.user.email, session)
       }
-      if (session?.user) await loadProfile(session.user)
-      else {
+      if (session?.user) {
+        const cached = readCachedProfile(session.user.id)
+        const silent =
+          event === 'TOKEN_REFRESHED' ||
+          (cached && isProfileComplete(cached) && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION'))
+        await loadProfile(session.user, { blockUI: !silent })
+      } else {
         setUser(null)
         setProfile(null)
-        // Keep cached profile so returning users won't be forced through onboarding again.
-        // Server-side profile still determines whether OnboardingPage should be shown.
         setLoading(false)
       }
     })

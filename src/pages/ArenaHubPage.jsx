@@ -5,9 +5,12 @@ import {
   getPredictionQuestions,
   getReactionCounts,
   getLeaderboard,
+  getQuizQuestions,
 } from '../lib/supabase'
+import { formatArenaStatusPill, formatMatchEventLine } from '../lib/matchLabel'
 import { C, Pill, LiveDot, Bar, GlassCard } from '../components/UI'
 import FanAvatar from '../components/FanAvatar'
+import EdifyPromoBanner from '../components/EdifyPromoBanner'
 
 const PODIUM_EMOJI = ['🦁', '🦊', '🐱']
 
@@ -37,34 +40,60 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
   const { profile } = useAuth()
   const [votePct, setVotePct] = useState({ pct_a: 50, pct_b: 50, total: 0 })
   const [qCount, setQCount] = useState(0)
-  const [activeFans, setActiveFans] = useState(0)
+  const [reactTotal, setReactTotal] = useState(0)
   const [topFans, setTopFans] = useState([])
+  const [quizCount, setQuizCount] = useState(0)
+
+  const activeFans = (votePct.total || 0) + reactTotal
 
   const teamA = match.team_a
   const teamB = match.team_b
   const live = match.status === 'live' || match.voting_open
 
   useEffect(() => {
-    async function load() {
+    let cancelled = false
+    async function loadHubMeta() {
       try {
-        const [votes, qs, reactions, leaders] = await Promise.all([
-          getVoteCounts(match.id),
+        const [qs, reactions, leaders, quizzes] = await Promise.all([
           getPredictionQuestions(match.id),
           getReactionCounts(match.id),
           getLeaderboard(3),
+          getQuizQuestions(match.id).catch(() => []),
         ])
-        setVotePct(votes)
+        if (cancelled) return
         setQCount(qs?.length || 0)
-        const reactTotal = Object.values(reactions || {}).reduce((a, b) => a + b, 0)
-        setActiveFans((votes?.total || 0) + reactTotal)
+        setQuizCount(quizzes?.length || 0)
+        setReactTotal(Object.values(reactions || {}).reduce((a, b) => a + b, 0))
         setTopFans(leaders || [])
       } catch (e) {
-        console.error('[ArenaHub] load', e)
+        console.error('[ArenaHub] meta', e)
       }
     }
-    load()
-    const t = setInterval(load, 12_000)
-    return () => clearInterval(t)
+    loadHubMeta()
+    const metaTimer = setInterval(loadHubMeta, 60_000)
+    return () => {
+      cancelled = true
+      clearInterval(metaTimer)
+    }
+  }, [match.id])
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadVotes() {
+      try {
+        const votes = await getVoteCounts(match.id)
+        if (cancelled) return
+        setVotePct(votes)
+      } catch (e) {
+        console.error('[ArenaHub] votes', e)
+      }
+    }
+    loadVotes()
+    const voteTimer = setInterval(loadVotes, 12_000)
+    return () => {
+      cancelled = true
+      clearInterval(voteTimer)
+    }
   }, [match.id])
 
   return (
@@ -73,7 +102,7 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
         <div className="hub-top-bar">
           <Pill color={live ? C.green : C.purple}>
             {live && <LiveDot color={C.green} />}
-            {live ? 'LIVE' : 'UPCOMING'} · DAY {match.day_number}
+            {formatArenaStatusPill(match)}
           </Pill>
           <div className="hub-top-actions">
             <div className="hub-xp-chip">
@@ -92,6 +121,21 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
             <span className="hub-active-val">{activeFans.toLocaleString()}</span>
           </div>
         </div>
+
+        <p className="hub-event-line">{formatMatchEventLine(match)} · {match.team_a?.short_name} vs {match.team_b?.short_name}</p>
+
+        <a
+          className="hub-108-live"
+          href="https://www.youtube.com/@108_Live/streams"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <span className="hub-108-live-icon" aria-hidden>▶</span>
+          <span className="hub-108-live-text">
+            <strong>Live scoring on 108 Live</strong>
+            <small>youtube.com/@108_Live/streams</small>
+          </span>
+        </a>
 
         <div className="hub-scoreboard">
           <div className="hub-team">
@@ -158,7 +202,24 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
           glow={C.yellow}
           onClick={() => onNavigate('players')}
         />
+        <HubCard
+          icon="📝"
+          title="Quiz"
+          sub="Test your knowledge"
+          badge={quizCount > 0 ? `${quizCount} Q` : 'SOON'}
+          badgeColor={C.purple}
+          glow={C.purple}
+          onClick={() => onNavigate('quiz')}
+        />
       </div>
+
+      <section className="hub-section">
+        <div className="hub-section-head">
+          <h3>#EdifyFanMoment</h3>
+          <button type="button" className="hub-link" onClick={() => onNavigate('rewards')}>Rewards →</button>
+        </div>
+        <EdifyPromoBanner variant="contest" compact />
+      </section>
 
       <section className="hub-section">
         <div className="hub-section-head">
