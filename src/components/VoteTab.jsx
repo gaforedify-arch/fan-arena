@@ -117,6 +117,30 @@ export default function VoteTab({ match, onXPEarned }) {
       <p style={{ textAlign: 'center', fontSize: 11, color: C.muted, marginTop: 12 }}>
         {counts.total} fans voted · Updates every 10s
       </p>
+      {/* Promo */}
+      <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+        <button
+          type="button"
+          onClick={() => { window.location.hash = `#${match.slug}/quiz` }}
+          style={{
+            background: C.purple,
+            border: `2px solid rgba(255,255,255,0.15)`,
+            color: '#fff',
+            borderRadius: 16,
+            padding: '12px 18px',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            fontWeight: 900,
+            width: '100%',
+            maxWidth: 340,
+          }}
+        >
+          ▶ Play more games
+        </button>
+        <div style={{ color: C.muted, fontSize: 13, fontWeight: 700, textAlign: 'center' }}>
+          Win freely and swad
+        </div>
+      </div>
     </div>
   )
 }

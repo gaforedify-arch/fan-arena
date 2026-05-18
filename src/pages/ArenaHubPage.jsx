@@ -126,7 +126,7 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
 
         <a
           className="hub-108-live"
-          href="https://www.youtube.com/@108_Live/streams"
+          href="https://www.youtube.com/watch?v=7dkRmhvtXvI"
           target="_blank"
           rel="noopener noreferrer"
         >

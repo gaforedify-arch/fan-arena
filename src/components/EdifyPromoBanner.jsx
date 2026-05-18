@@ -19,9 +19,9 @@ const PRIZES = [
 
 const RULES = [
   'Capture any exciting moment from the match',
-  'Post on Instagram or Facebook',
+  'Post on Instagram',
   'Use hashtag #EdifyFanMoment',
-  'Tag @Edify in your post',
+  'Tag @Edifyfoundations in your post',
   'Your account must be public',
 ]
 
@@ -195,12 +195,12 @@ function ContestCta() {
   return (
     <div className="edify-promo-cta">
       <p>
-        Post on Instagram or Facebook with <strong>#EdifyFanMoment</strong> and tag <strong>@Edify</strong> (public
+        Post on Instagram with <strong>#EdifyFanMoment</strong> and tag <strong>@Edifyfoundations</strong> (public
         account).
       </p>
       <a
         className="edify-promo-btn"
-        href="https://www.instagram.com/explore/tags/edifyfanmoment/"
+        href="https://www.instagram.com/edifyfoundations/"
         target="_blank"
         rel="noopener noreferrer"
       >

@@ -1,0 +1,18 @@
+Fan Arena — magic link email (one-time Supabase setup)
+
+Gmail groups emails with the same subject into one thread.
+Cheapest fix: unique subject per sign-in using the OTP token or attempt number.
+
+In Supabase Dashboard:
+  Authentication → Email Templates → Magic Link (or Confirm sign-in)
+
+Set Subject to:
+  Fan Arena sign-in #{{ .Token }}
+
+If your project sends a link only (no code in email), use:
+  Fan Arena sign-in #{{ .Data.sign_in_attempt }}
+
+The app sends sign_in_attempt (1, 2, 3…) with each "Send one-time link" tap.
+Users also see "Sign-in request #N" on the Check your inbox screen.
+
+Separate threads via a custom email provider (Resend, SendGrid) costs more and needs an Edge Function — not required for most events.
