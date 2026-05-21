@@ -30,7 +30,10 @@ export default function LeaderboardTab() {
   useEffect(() => {
     async function load() {
       try {
-        const [lb, rank] = await Promise.all([getLeaderboard(20), getUserRank(user.id)])
+        const [lb, rank] = await Promise.all([
+          getLeaderboard(20),
+          user?.id ? getUserRank(user.id) : Promise.resolve(null),
+        ])
         setLeaders(lb || [])
         setMyRank(rank)
       } catch (e) {
@@ -42,7 +45,7 @@ export default function LeaderboardTab() {
     load()
     const t = setInterval(load, 15_000)
     return () => clearInterval(t)
-  }, [user.id])
+  }, [user?.id])
 
   const top3 = leaders.slice(0, 3)
   const rest = leaders.slice(3)
@@ -81,7 +84,7 @@ export default function LeaderboardTab() {
         </div>
       ) : (
         <>
-          {myRank != null && (
+          {user && myRank != null && (
             <div className="ranks-my-rank">
               <span>Your rank</span>
               <strong>#{myRank}</strong>
@@ -114,7 +117,7 @@ export default function LeaderboardTab() {
             {rest.map((fan, i) => {
               const rank = i + 4
               const badge = badgeFor(rank)
-              const isMe = fan.id === user.id
+              const isMe = user && fan.id === user.id
               return (
                 <div key={fan.id} className={`ranks-row ${isMe ? 'ranks-row-me' : ''}`}>
                   <span className="ranks-row-num">#{rank}</span>

@@ -17,6 +17,8 @@ export default function QuizQuestionsManager({ match, onUpdated, flash }) {
   const [questions, setQuestions] = useState([])
   const [adding, setAdding] = useState(false)
   const [qform, setQForm] = useState({ question_key: '', question_text: '', options: '' })
+  const [editingId, setEditingId] = useState(null)
+  const [editForm, setEditForm] = useState({ question_text: '', options: '' })
 
   async function load() {
     setQuestions(await adminGetQuizQuestions(matchId))
@@ -71,6 +73,33 @@ export default function QuizQuestionsManager({ match, onUpdated, flash }) {
     }
   }
 
+  function startEdit(question) {
+    setEditingId(question.id)
+    setEditForm({
+      question_text: question.question_text || '',
+      options: Array.isArray(question.options) ? question.options.join(', ') : JSON.parse(question.options).join(', '),
+    })
+  }
+
+  async function saveEdit(questionId) {
+    const opts = [...new Set(editForm.options.split(',').map(o => o.trim()).filter(Boolean))]
+    if (!editForm.question_text.trim() || opts.length < 2) {
+      alert('Add question text and at least 2 unique options.')
+      return
+    }
+    try {
+      await adminUpdateQuizQuestion(questionId, {
+        question_text: editForm.question_text.trim(),
+        options: opts,
+      })
+      setEditingId(null)
+      flash('Quiz question updated')
+      load()
+    } catch (e) {
+      alert(e.message)
+    }
+  }
+
   async function deleteQuestion(questionId) {
     if (!window.confirm('Delete this quiz question?')) return
     try {
@@ -110,7 +139,36 @@ export default function QuizQuestionsManager({ match, onUpdated, flash }) {
         const opts = Array.isArray(q.options) ? q.options : JSON.parse(q.options)
         return (
           <div key={q.id} style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${C.border}`, borderRadius: 10, padding: 12, marginBottom: 8 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', marginBottom: 10 }}>{q.question_text}</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+              {editingId === q.id ? (
+                <input
+                  value={editForm.question_text}
+                  onChange={e => setEditForm(f => ({ ...f, question_text: e.target.value }))}
+                  style={{ ...inpStyle, flex: 1 }}
+                />
+              ) : (
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', flex: 1 }}>{q.question_text}</div>
+              )}
+              {editingId === q.id ? (
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button type="button" onClick={() => saveEdit(q.id)} style={{ ...smallBtn, color: C.green, borderColor: `${C.green}60` }}>Save</button>
+                  <button type="button" onClick={() => setEditingId(null)} style={smallBtn}>Cancel</button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button type="button" onClick={() => startEdit(q)} style={{ ...smallBtn, color: C.blue, borderColor: `${C.blue}60` }}>Edit</button>
+                  <button type="button" onClick={() => deleteQuestion(q.id)} style={{ ...smallBtn, color: C.red, borderColor: `${C.red}50` }}>Delete</button>
+                </div>
+              )}
+            </div>
+            {editingId === q.id && (
+              <input
+                placeholder="Options (comma separated)"
+                value={editForm.options}
+                onChange={e => setEditForm(f => ({ ...f, options: e.target.value }))}
+                style={{ ...inpStyle, width: '100%', marginBottom: 10 }}
+              />
+            )}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {opts.map((opt, i) => (
                 <button
@@ -130,7 +188,6 @@ export default function QuizQuestionsManager({ match, onUpdated, flash }) {
                 </button>
               ))}
             </div>
-            <button type="button" onClick={() => deleteQuestion(q.id)} style={{ ...smallBtn, marginTop: 8, color: C.red, borderColor: `${C.red}50` }}>Delete</button>
           </div>
         )
       })}

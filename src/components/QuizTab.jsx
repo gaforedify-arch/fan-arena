@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { getQuizQuestions, submitQuizAnswer, getUserQuizAnswers } from '../lib/supabase'
+import { matchAnalyticsParams, trackEvent } from '../lib/analytics'
 import { C, GlassCard } from '../components/UI'
+import AuthPromptModal from './AuthPromptModal'
 
 export default function QuizTab({ match }) {
   const { user } = useAuth()
@@ -10,13 +12,15 @@ export default function QuizTab({ match }) {
   const [resultByQ, setResultByQ] = useState({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(null)
+  const [loginNotice, setLoginNotice] = useState('')
+  const [showLoginPop, setShowLoginPop] = useState(false)
 
   useEffect(() => {
     async function load() {
       try {
         const [qs, answers] = await Promise.all([
           getQuizQuestions(match.id),
-          getUserQuizAnswers(user.id, match.id),
+          user?.id ? getUserQuizAnswers(user.id, match.id) : Promise.resolve([]),
         ])
         setQuestions(qs)
         const map = {}
@@ -39,14 +43,31 @@ export default function QuizTab({ match }) {
     load()
     const t = setInterval(load, 15_000)
     return () => clearInterval(t)
-  }, [match.id, user.id])
+  }, [match.id, user?.id])
 
   async function handleAnswer(questionId, answer) {
     if (!match.quiz_open || saving === questionId || myAnswers[questionId]) return
+    trackEvent('fan_arena_quiz_answer_click', {
+      ...matchAnalyticsParams(match, user),
+      contest_type: 'quiz',
+      question_id: questionId,
+      answer,
+    })
+    if (!user?.id) {
+      setLoginNotice('Login to lock quiz answers and earn XP.')
+      setShowLoginPop(true)
+      return
+    }
     setSaving(questionId)
     try {
       await submitQuizAnswer(user.id, match.id, questionId, answer)
       setMyAnswers(prev => ({ ...prev, [questionId]: answer }))
+      trackEvent('fan_arena_quiz_answer_saved', {
+        ...matchAnalyticsParams(match, user),
+        contest_type: 'quiz',
+        question_id: questionId,
+        answer,
+      })
     } catch (e) {
       alert(e.message)
     } finally {
@@ -70,6 +91,17 @@ export default function QuizTab({ match }) {
 
   return (
     <div>
+      <AuthPromptModal
+        open={showLoginPop}
+        match={match}
+        icon="📝"
+        title="Save your quiz answer"
+        message="You can preview the quiz freely. Login to submit answers, protect your score, and collect XP for correct picks."
+        cta="Login & play quiz"
+        screen="quiz"
+        trigger="guest_quiz_answer"
+        onClose={() => setShowLoginPop(false)}
+      />
       {!canAnswer && (
         <div style={{
           background: `${C.purple}15`, border: `1px solid ${C.purple}40`,
@@ -80,7 +112,12 @@ export default function QuizTab({ match }) {
       )}
       <div style={{ textAlign: 'center', marginBottom: 16 }}>
         <h2 style={{ fontSize: 22, fontWeight: 900, color: '#fff', margin: '0 0 6px' }}>Match Quiz</h2>
-        <p style={{ fontSize: 12, color: C.muted }}>+50 XP per correct answer after results · each pick is final</p>
+        <p style={{ fontSize: 12, color: C.muted }}>
+          {user ? '+50 XP per correct answer after results · each pick is final' : 'Preview the quiz · login to submit answers and earn XP'}
+        </p>
+        {loginNotice && (
+          <p style={{ fontSize: 12, color: C.yellow, marginTop: 8, fontWeight: 700 }}>{loginNotice}</p>
+        )}
         {canAnswer && (
           <>
             <div style={{ marginTop: 10, background: 'rgba(255,255,255,0.06)', borderRadius: 99, height: 5, overflow: 'hidden' }}>

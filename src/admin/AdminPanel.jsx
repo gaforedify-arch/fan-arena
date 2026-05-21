@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import {
-  adminGetAllMatches, adminCreateMatch, adminUpdateMatch,
-  adminGetAllTeams, adminCreateTeam,
-  adminGetPlayers, adminCreatePlayer,
+  adminGetAllMatches, adminCreateMatch, adminUpdateMatch, adminDeleteMatch,
+  adminGetAllTeams, adminCreateTeam, adminUpdateTeam, adminDeleteTeam,
+  adminGetPlayers, adminCreatePlayer, adminUpdatePlayer, adminDeletePlayer,
   adminGetMatchPlayers, adminAddMatchPlayer, adminRemoveMatchPlayer,
   adminGetQuestions, adminCreateQuestion, adminUpdateQuestion, adminDeleteQuestion,
   adminRunPayout, adminPayQuestionPredictions, adminGetLeads
@@ -110,13 +110,23 @@ function matchFanUrl(slug) {
   return `${window.location.origin}${window.location.pathname}#/match/${slug}`
 }
 
+function toDateTimeLocal(value) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+}
+
 function MatchesSection({ matches, teams, reload, flash }) {
   const [creating, setCreating] = useState(false)
   const [saving, setSaving]       = useState(false)
   const [selected, setSelected] = useState(null)
   const [form, setForm]         = useState({ day_number: '', match_number: '', team_a_id: '', team_b_id: '', starts_at: '' })
+  const [editingMatchId, setEditingMatchId] = useState(null)
+  const [editForm, setEditForm] = useState({ day_number: '', match_number: '', team_a_id: '', team_b_id: '', starts_at: '' })
 
   function set(k) { return e => setForm(f => ({ ...f, [k]: e.target.value })) }
+  function editSet(k) { return e => setEditForm(f => ({ ...f, [k]: e.target.value })) }
 
   async function handleCreate() {
     if (!form.day_number || !form.match_number || !form.team_a_id || !form.team_b_id) {
@@ -172,6 +182,51 @@ function MatchesSection({ matches, teams, reload, flash }) {
   async function updateScore(match, scoreA, scoreB, over) {
     await adminUpdateMatch(match.id, { score_a: scoreA, score_b: scoreB, current_over: over })
     flash('Score updated')
+  }
+
+  function startEditMatch(match) {
+    setEditingMatchId(match.id)
+    setEditForm({
+      day_number: match.day_number || '',
+      match_number: match.match_number || '',
+      team_a_id: match.team_a_id || '',
+      team_b_id: match.team_b_id || '',
+      starts_at: toDateTimeLocal(match.starts_at),
+    })
+  }
+
+  async function saveMatchEdit(match) {
+    if (!editForm.day_number || !editForm.match_number || !editForm.team_a_id || !editForm.team_b_id) {
+      alert('Please fill in day #, match #, and both teams.')
+      return
+    }
+    if (editForm.team_a_id === editForm.team_b_id) {
+      alert('Team A and Team B must be different.')
+      return
+    }
+    try {
+      await adminUpdateMatch(match.id, {
+        day_number: parseInt(editForm.day_number, 10),
+        match_number: parseInt(editForm.match_number, 10),
+        team_a_id: editForm.team_a_id,
+        team_b_id: editForm.team_b_id,
+        starts_at: editForm.starts_at ? new Date(editForm.starts_at).toISOString() : null,
+      })
+      setEditingMatchId(null)
+      flash('Match updated')
+      reload()
+    } catch (e) { alert(e?.message || 'Update failed') }
+  }
+
+  async function deleteMatch(match) {
+    const label = `${match.team_a?.short_name || 'Team A'} vs ${match.team_b?.short_name || 'Team B'}`
+    if (!window.confirm(`Delete ${label}? This can fail if votes, questions, or players are linked to it.`)) return
+    try {
+      await adminDeleteMatch(match.id)
+      if (selected === match.id) setSelected(null)
+      flash('Match deleted')
+      reload()
+    } catch (e) { alert(e?.message || 'Delete failed') }
   }
 
   async function runPayout(match) {
@@ -265,8 +320,39 @@ function MatchesSection({ matches, teams, reload, flash }) {
                 style={{ background: 'none', border: `1px solid ${C.border}`, borderRadius: 8, padding: '6px 10px', color: C.muted, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
                 {selected === match.id ? 'Close' : 'Manage'}
               </button>
+              <button type="button" onClick={() => startEditMatch(match)}
+                style={{ background: 'none', border: `1px solid ${C.blue}60`, borderRadius: 8, padding: '6px 10px', color: C.blue, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
+                Edit
+              </button>
+              <button type="button" onClick={() => deleteMatch(match)}
+                style={{ background: 'none', border: `1px solid ${C.red}60`, borderRadius: 8, padding: '6px 10px', color: C.red, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
+                Delete
+              </button>
             </div>
           </div>
+
+          {editingMatchId === match.id && (
+            <div style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, marginBottom: 12 }}>
+              <SectionLabel>Edit Match</SectionLabel>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                <input type="number" placeholder="Day #" value={editForm.day_number} onChange={editSet('day_number')} style={inpStyle} />
+                <input type="number" placeholder="Match #" value={editForm.match_number} onChange={editSet('match_number')} style={inpStyle} />
+              </div>
+              <select value={editForm.team_a_id} onChange={editSet('team_a_id')} style={{ ...selectStyle, marginBottom: 8 }}>
+                <option value="">Select team A</option>
+                {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+              <select value={editForm.team_b_id} onChange={editSet('team_b_id')} style={{ ...selectStyle, marginBottom: 8 }}>
+                <option value="">Select team B</option>
+                {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+              <input type="datetime-local" value={editForm.starts_at} onChange={editSet('starts_at')} style={{ ...inpStyle, width: '100%', marginBottom: 8 }} />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button type="button" onClick={() => saveMatchEdit(match)} style={{ ...smallBtn, flex: 1, color: C.green, borderColor: `${C.green}60` }}>Save Match</button>
+                <button type="button" onClick={() => setEditingMatchId(null)} style={{ ...smallBtn, flex: 1 }}>Cancel</button>
+              </div>
+            </div>
+          )}
 
           {selected === match.id && (
             <div>
@@ -846,6 +932,8 @@ function TeamRoster({ team, flash }) {
   const [players, setPlayers] = useState([])
   const [open, setOpen] = useState(false)
   const [pf, setPf] = useState({ name: '', role: DEFAULT_PLAYER_ROLE, jersey_no: '' })
+  const [editingPlayerId, setEditingPlayerId] = useState(null)
+  const [playerEdit, setPlayerEdit] = useState({ name: '', role: DEFAULT_PLAYER_ROLE, jersey_no: '' })
 
   async function load() {
     setPlayers(await adminGetPlayers(team.id))
@@ -868,6 +956,38 @@ function TeamRoster({ team, flash }) {
     } catch (e) { alert(e.message) }
   }
 
+  function startEditPlayer(player) {
+    setEditingPlayerId(player.id)
+    setPlayerEdit({
+      name: player.name || '',
+      role: player.role || DEFAULT_PLAYER_ROLE,
+      jersey_no: player.jersey_no ?? '',
+    })
+  }
+
+  async function savePlayer(playerId) {
+    if (!playerEdit.name.trim()) { alert('Name required'); return }
+    try {
+      await adminUpdatePlayer(playerId, {
+        name: playerEdit.name.trim(),
+        role: playerEdit.role,
+        jersey_no: playerEdit.jersey_no ? parseInt(playerEdit.jersey_no, 10) : null,
+      })
+      setEditingPlayerId(null)
+      flash('Player updated')
+      load()
+    } catch (e) { alert(e.message) }
+  }
+
+  async function deletePlayer(player) {
+    if (!window.confirm(`Delete ${player.name}? This can fail if the player is used in matches or votes.`)) return
+    try {
+      await adminDeletePlayer(player.id)
+      flash('Player deleted')
+      load()
+    } catch (e) { alert(e.message) }
+  }
+
   return (
     <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.border}` }}>
       <button type="button" onClick={() => setOpen(o => !o)} style={{ background: 'none', border: 'none', color: C.purple, fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
@@ -876,8 +996,32 @@ function TeamRoster({ team, flash }) {
       {open && (
         <div style={{ marginTop: 10 }}>
           {players.map(p => (
-            <div key={p.id} style={{ fontSize: 12, color: '#fff', padding: '4px 0' }}>
-              {p.name}{p.jersey_no ? ` #${p.jersey_no}` : ''} · <span style={{ color: C.muted }}>{formatPlayerRole(p.role)}</span>
+            <div key={p.id} style={{ fontSize: 12, color: '#fff', padding: '6px 0', borderBottom: `1px solid ${C.border}` }}>
+              {editingPlayerId === p.id ? (
+                <div>
+                  <input value={playerEdit.name} onChange={e => setPlayerEdit(f => ({ ...f, name: e.target.value }))} style={{ ...inpStyle, width: '100%', marginBottom: 6 }} />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 6 }}>
+                    <input placeholder="Jersey #" value={playerEdit.jersey_no} onChange={e => setPlayerEdit(f => ({ ...f, jersey_no: e.target.value }))} style={inpStyle} />
+                    <select value={playerEdit.role} onChange={e => setPlayerEdit(f => ({ ...f, role: e.target.value }))} style={selectStyle}>
+                      {PLAYER_ROLES.map(r => (
+                        <option key={r.value} value={r.value}>{r.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button type="button" onClick={() => savePlayer(p.id)} style={{ ...smallBtn, flex: 1, color: C.green, borderColor: `${C.green}60` }}>Save</button>
+                    <button type="button" onClick={() => setEditingPlayerId(null)} style={{ ...smallBtn, flex: 1 }}>Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ flex: 1 }}>
+                    {p.name}{p.jersey_no ? ` #${p.jersey_no}` : ''} · <span style={{ color: C.muted }}>{formatPlayerRole(p.role)}</span>
+                  </span>
+                  <button type="button" onClick={() => startEditPlayer(p)} style={{ ...smallBtn, color: C.blue, borderColor: `${C.blue}60` }}>Edit</button>
+                  <button type="button" onClick={() => deletePlayer(p)} style={{ ...smallBtn, color: C.red, borderColor: `${C.red}60` }}>Delete</button>
+                </div>
+              )}
             </div>
           ))}
           <input placeholder="Player name" value={pf.name} onChange={e => setPf(f => ({ ...f, name: e.target.value }))} style={{ ...inpStyle, width: '100%', marginTop: 8, marginBottom: 6 }} />
@@ -898,6 +1042,8 @@ function TeamRoster({ team, flash }) {
 
 function TeamsSection({ teams, reload, flash }) {
   const [form, setForm]   = useState({ name: '', short_name: '', color_hex: '#a855f7' })
+  const [editingTeamId, setEditingTeamId] = useState(null)
+  const [teamEdit, setTeamEdit] = useState({ name: '', short_name: '', color_hex: '#a855f7' })
   function set(k) { return e => setForm(f => ({ ...f, [k]: e.target.value })) }
 
   async function handleCreate() {
@@ -905,6 +1051,41 @@ function TeamsSection({ teams, reload, flash }) {
       await adminCreateTeam(form)
       flash('Team created!')
       setForm({ name: '', short_name: '', color_hex: '#a855f7' })
+      reload()
+    } catch (e) { alert(e.message) }
+  }
+
+  function startEditTeam(team) {
+    setEditingTeamId(team.id)
+    setTeamEdit({
+      name: team.name || '',
+      short_name: team.short_name || '',
+      color_hex: team.color_hex || '#a855f7',
+    })
+  }
+
+  async function saveTeam(teamId) {
+    if (!teamEdit.name.trim() || !teamEdit.short_name.trim()) {
+      alert('Team name and short name are required.')
+      return
+    }
+    try {
+      await adminUpdateTeam(teamId, {
+        name: teamEdit.name.trim(),
+        short_name: teamEdit.short_name.trim(),
+        color_hex: teamEdit.color_hex,
+      })
+      setEditingTeamId(null)
+      flash('Team updated')
+      reload()
+    } catch (e) { alert(e.message) }
+  }
+
+  async function deleteTeam(team) {
+    if (!window.confirm(`Delete ${team.name}? This can fail if matches or players are linked to it.`)) return
+    try {
+      await adminDeleteTeam(team.id)
+      flash('Team deleted')
       reload()
     } catch (e) { alert(e.message) }
   }
@@ -929,13 +1110,30 @@ function TeamsSection({ teams, reload, flash }) {
 
       <GlassCard>
         {teams.map((team, i) => (
-          <div key={team.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: i < teams.length - 1 ? `1px solid ${C.border}` : 'none' }}>
-            <div style={{ width: 32, height: 32, borderRadius: '50%', background: team.color_hex, flexShrink: 0 }} />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{team.name}</div>
-              <div style={{ fontSize: 11, color: C.muted }}>{team.short_name}</div>
+          <div key={team.id} style={{ padding: '12px 0', borderBottom: i < teams.length - 1 ? `1px solid ${C.border}` : 'none' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 32, height: 32, borderRadius: '50%', background: team.color_hex, flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{team.name}</div>
+                <div style={{ fontSize: 11, color: C.muted }}>{team.short_name}</div>
+              </div>
+              <button type="button" onClick={() => startEditTeam(team)} style={{ ...smallBtn, color: C.blue, borderColor: `${C.blue}60` }}>Edit</button>
+              <button type="button" onClick={() => deleteTeam(team)} style={{ ...smallBtn, color: C.red, borderColor: `${C.red}60` }}>Delete</button>
             </div>
             <TeamRoster team={team} flash={flash} />
+            {editingTeamId === team.id && (
+              <div style={{ marginTop: 10, padding: 12, borderRadius: 12, border: `1px solid ${C.border}`, background: 'rgba(255,255,255,0.03)' }}>
+                <input placeholder="Team name" value={teamEdit.name} onChange={e => setTeamEdit(f => ({ ...f, name: e.target.value }))} style={{ ...inpStyle, width: '100%', marginBottom: 8 }} />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 72px', gap: 8, marginBottom: 8 }}>
+                  <input placeholder="Short name" value={teamEdit.short_name} onChange={e => setTeamEdit(f => ({ ...f, short_name: e.target.value }))} style={inpStyle} />
+                  <input type="color" value={teamEdit.color_hex} onChange={e => setTeamEdit(f => ({ ...f, color_hex: e.target.value }))} style={{ width: '100%', height: 40, borderRadius: 10, border: `1px solid ${C.border}`, background: 'none', cursor: 'pointer' }} />
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button type="button" onClick={() => saveTeam(team.id)} style={{ ...smallBtn, flex: 1, color: C.green, borderColor: `${C.green}60` }}>Save Team</button>
+                  <button type="button" onClick={() => setEditingTeamId(null)} style={{ ...smallBtn, flex: 1 }}>Cancel</button>
+                </div>
+              </div>
+            )}
           </div>
         ))}
         {teams.length === 0 && <p style={{ color: C.muted, textAlign: 'center', padding: 20, fontSize: 13 }}>No teams yet. Add one above.</p>}

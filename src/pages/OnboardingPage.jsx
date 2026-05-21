@@ -2,6 +2,15 @@ import { useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { C, Btn, Input, FullPageCenter } from '../components/UI'
 
+function goBack() {
+  const parts = window.location.hash.replace('#', '').split('/').filter(Boolean)
+  if (parts[0] === 'match' && parts[1]) {
+    window.location.hash = `#/match/${parts[1]}/home`
+  } else {
+    window.location.hash = '#/'
+  }
+}
+
 export default function OnboardingPage() {
   const { completeOnboarding } = useAuth()
   const [form, setForm]       = useState({ name: '', phone: '', city: '', age: '' })
@@ -39,6 +48,13 @@ export default function OnboardingPage() {
   return (
     <FullPageCenter>
       <div style={{ width: '100%', maxWidth: 380 }}>
+        <button
+          type="button"
+          onClick={goBack}
+          style={{ background: 'none', border: 'none', color: C.muted, fontSize: 12, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 18 }}
+        >
+          ← Back
+        </button>
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <div style={{ fontSize: 44, marginBottom: 10 }}>🏏</div>
           <h1 style={{ fontSize: 24, fontWeight: 900, color: '#fff', margin: '0 0 6px' }}>Set up your profile</h1>

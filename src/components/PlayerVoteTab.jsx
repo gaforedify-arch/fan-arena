@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { getMatchPlayers, castPlayerVote, getUserPlayerVotes } from '../lib/supabase'
+import { matchAnalyticsParams, trackEvent } from '../lib/analytics'
 import { C } from '../components/UI'
 import { formatPlayerRole } from '../lib/playerRoles'
+import AuthPromptModal from './AuthPromptModal'
 
 const CATEGORIES = [
   { key: 'man_of_match', label: 'Man of the Match', icon: '👑' },
@@ -17,24 +19,49 @@ export default function PlayerVoteTab({ match, onXPEarned }) {
   const [activeCategory, setActive]   = useState('man_of_match')
   const [loading, setLoading]         = useState(true)
   const [casting, setCasting]         = useState(false)
+  const [loginNotice, setLoginNotice] = useState('')
+  const [showLoginPop, setShowLoginPop] = useState(false)
 
   useEffect(() => {
     async function load() {
-      const [mp, uv] = await Promise.all([getMatchPlayers(match.id), getUserPlayerVotes(user.id, match.id)])
+      const [mp, uv] = await Promise.all([
+        getMatchPlayers(match.id),
+        user?.id ? getUserPlayerVotes(user.id, match.id) : Promise.resolve([]),
+      ])
       setPlayers(mp)
       const map = {}; uv.forEach(v => { map[v.category] = v.player_id })
       setMyVotes(map); setLoading(false)
     }
     load()
-  }, [match.id, user.id])
+  }, [match.id, user?.id])
 
   async function handleVote(playerId) {
     if (casting || !match.voting_open) return
+    const picked = players.find(({ players: p }) => p.id === playerId)?.players
+    trackEvent('fan_arena_player_pick_click', {
+      ...matchAnalyticsParams(match, user),
+      contest_type: 'player_pick',
+      category: activeCategory,
+      player_id: playerId,
+      player_name: picked?.name,
+    })
+    if (!user?.id) {
+      setLoginNotice('Login to lock player picks and earn XP.')
+      setShowLoginPop(true)
+      return
+    }
     setCasting(true)
     try {
       await castPlayerVote(user.id, match.id, playerId, activeCategory)
       setMyVotes(prev => ({ ...prev, [activeCategory]: playerId }))
       onXPEarned?.()
+      trackEvent('fan_arena_player_pick_submitted', {
+        ...matchAnalyticsParams(match, user),
+        contest_type: 'player_pick',
+        category: activeCategory,
+        player_id: playerId,
+        player_name: picked?.name,
+      })
     } catch (e) { alert(e.message) }
     finally { setCasting(false) }
   }
@@ -60,6 +87,17 @@ export default function PlayerVoteTab({ match, onXPEarned }) {
 
   return (
     <div>
+      <AuthPromptModal
+        open={showLoginPop}
+        match={match}
+        icon="🏆"
+        title="Back your star player"
+        message="Good pick. Login to lock your player vote, build your fan profile, and earn XP if your player wins."
+        cta="Login & lock pick"
+        screen="players"
+        trigger="guest_player_pick"
+        onClose={() => setShowLoginPop(false)}
+      />
       {/* Category tabs */}
       <div style={{ marginBottom: 20 }}>
         {CATEGORIES.map(cat => (
@@ -82,6 +120,9 @@ export default function PlayerVoteTab({ match, onXPEarned }) {
       <p style={{ fontSize: 11, color: C.muted, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12 }}>
         {currentCat.icon} Pick: {currentCat.label}
       </p>
+      {loginNotice && (
+        <p style={{ fontSize: 12, color: C.yellow, marginBottom: 12, fontWeight: 700, textAlign: 'center' }}>{loginNotice}</p>
+      )}
 
       {players.map(({ team_side, players: p }) => (
         <button key={p.id} onClick={() => handleVote(p.id)} disabled={casting}
@@ -111,7 +152,7 @@ export default function PlayerVoteTab({ match, onXPEarned }) {
       ))}
 
       <p style={{ textAlign: 'center', fontSize: 11, color: C.muted, marginTop: 8 }}>
-        +75 XP if your pick wins. Change anytime before match ends.
+        {user ? '+75 XP if your pick wins. Change anytime before match ends.' : 'You can browse the roster. Login before picking to earn XP.'}
       </p>
     </div>
   )

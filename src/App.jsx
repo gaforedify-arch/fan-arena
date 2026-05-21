@@ -9,7 +9,6 @@ const OnboardingPage = lazy(() => import('./pages/OnboardingPage'))
 const ArenaShell = lazy(() => import('./pages/ArenaShell'))
 const AdminPanel = lazy(() => import('./admin/AdminPanel'))
 const MatchHomePage = lazy(() => import('./pages/StatusPages').then((m) => ({ default: m.MatchHomePage })))
-const RedirectPage = lazy(() => import('./pages/StatusPages').then((m) => ({ default: m.RedirectPage })))
 const NotFoundPage = lazy(() => import('./pages/StatusPages').then((m) => ({ default: m.NotFoundPage })))
 
 function LoadingScreen({ label = 'Loading arena...' }) {
@@ -25,6 +24,7 @@ function AppInner() {
   const route = parseHash()
   const slug = route.type === 'match' ? route.slug : null
   const tab = route.type === 'match' ? route.tab : 'home'
+  const wantsLogin = route.type === 'match' && tab === 'login'
 
   const { user, profile, loading: authLoading } = useAuth()
   const { match, matchState, nextMatch, loading: matchLoading } = useMatch()
@@ -37,8 +37,8 @@ function AppInner() {
     )
   }
   if (authLoading) return <LoadingScreen label="Loading..." />
-  if (!user) return <LoginPage />
-  if (!profile) {
+  if (wantsLogin && !user) return <LoginPage />
+  if (wantsLogin && !profile) {
     return (
       <Suspense fallback={<LoadingScreen label="Loading..." />}>
         <OnboardingPage />
@@ -63,14 +63,8 @@ function AppInner() {
   switch (matchState) {
     case MATCH_STATE.ACTIVE:
     case MATCH_STATE.NOT_STARTED:
-      return arena
     case MATCH_STATE.COMPLETED:
-      if (tab && tab !== 'home') return arena
-      return (
-        <Suspense fallback={<LoadingScreen />}>
-          <RedirectPage match={match} nextMatch={nextMatch} />
-        </Suspense>
-      )
+      return arena
     case MATCH_STATE.NOT_FOUND:
       return (
         <Suspense fallback={<LoadingScreen />}>
@@ -110,6 +104,7 @@ export default function App() {
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pulse { 0%,100%{opacity:.5;transform:scale(1)} 50%{opacity:1;transform:scale(1.2)} }
         @keyframes floatUp { 0%{transform:translateY(0) scale(1);opacity:1} 100%{transform:translateY(-120px) scale(1.3);opacity:0} }
+        @keyframes videoReactionFloat { 0%{transform:translate(-50%, 18px) scale(.8);opacity:0} 12%{opacity:1} 78%{opacity:1} 100%{transform:translate(calc(-50% + var(--reaction-drift)), -145px) scale(1.45);opacity:0} }
         input::placeholder { color: rgba(255,255,255,0.25); }
         select option { background: #121220; }
 
@@ -133,12 +128,10 @@ export default function App() {
         .hub-xp-val { font-size: 15px; font-weight: 900; color: ${C.yellow}; }
         .hub-meta-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 14px; }
         .hub-event-line { font-size: 10px; color: ${C.muted}; text-align: center; margin-bottom: 10px; letter-spacing: 0.5px; font-weight: 600; }
-        .hub-108-live { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; padding: 12px 14px; border-radius: 14px; background: linear-gradient(135deg, rgba(239,68,68,0.15), rgba(168,85,247,0.12)); border: 1px solid rgba(239,68,68,0.35); text-decoration: none; color: inherit; transition: border-color 0.15s, transform 0.15s; }
-        .hub-108-live:active { transform: scale(0.99); border-color: rgba(239,68,68,0.55); }
-        .hub-108-live-icon { flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; background: #ef4444; color: #fff; font-size: 14px; display: flex; align-items: center; justify-content: center; font-weight: 900; box-shadow: 0 0 16px rgba(239,68,68,0.45); }
-        .hub-108-live-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-        .hub-108-live-text strong { font-size: 13px; font-weight: 800; color: #fff; }
-        .hub-108-live-text small { font-size: 10px; color: ${C.muted}; font-weight: 600; }
+        .hub-108-live-video { position: relative; width: 100%; aspect-ratio: 16 / 9; margin-bottom: 14px; overflow: hidden; border-radius: 14px; border: 1px solid rgba(239,68,68,0.35); background: rgba(0,0,0,0.35); box-shadow: 0 14px 28px rgba(0,0,0,0.25); }
+        .hub-108-live-video iframe { display: block; width: 100%; height: 100%; border: 0; }
+        .hub-reaction-overlay { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 2; }
+        .hub-floating-reaction { position: absolute; bottom: 12px; font-size: 28px; line-height: 1; filter: drop-shadow(0 3px 8px rgba(0,0,0,0.75)); animation: videoReactionFloat 3s ease-out forwards; will-change: transform, opacity; }
         .hub-greeting { font-size: 12px; color: ${C.muted}; font-weight: 600; }
         .hub-active-fans { text-align: right; line-height: 1.2; }
         .hub-active-label { display: block; font-size: 8px; letter-spacing: 2px; color: ${C.muted}; font-weight: 700; }

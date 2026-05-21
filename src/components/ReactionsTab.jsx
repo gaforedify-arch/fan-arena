@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { sendReaction, getReactionCounts } from '../lib/supabase'
+import { matchAnalyticsParams, trackEvent } from '../lib/analytics'
 import { C, GlassCard, Pill, LiveDot } from '../components/UI'
+import AuthPromptModal from './AuthPromptModal'
 
 const BTNS = [
   { id: 'fire',   emoji: '🔥', label: 'FIRE',   color: C.orange },
@@ -19,6 +21,8 @@ export default function ReactionsTab({ match }) {
   const [energy, setEnergy]       = useState(0)
   const [myCount, setMyCount]     = useState(0)
   const [capped, setCapped]       = useState(false)
+  const [loginNotice, setLoginNotice] = useState('')
+  const [showLoginPop, setShowLoginPop] = useState(false)
 
   useEffect(() => {
     getReactionCounts(match.id).then(c => {
@@ -32,19 +36,41 @@ export default function ReactionsTab({ match }) {
 
   async function handleReact(r) {
     if (capped) return
+    trackEvent('fan_arena_reaction_click', {
+      ...matchAnalyticsParams(match, user),
+      contest_type: 'reaction',
+      reaction_type: r.id,
+      reaction_label: r.label,
+    })
+    if (!user?.id) {
+      setLoginNotice('Login to send live reactions.')
+      setShowLoginPop(true)
+      return
+    }
     // Optimistic UI
     setCounts(prev => ({ ...prev, [r.id]: prev[r.id] + 1 }))
     setEnergy(e => Math.min(100, e + 3))
-    const burst = Array.from({ length: 3 }).map((_, i) => ({
-      id: `${Date.now()}-${i}`, emoji: r.emoji, x: 20 + Math.random() * 60
+    const burst = Array.from({ length: 28 }).map((_, i) => ({
+      id: `${Date.now()}-${i}-${Math.random()}`,
+      emoji: r.emoji,
+      x: 6 + Math.random() * 88,
+      bottom: 14 + Math.random() * 32,
+      size: 20 + Math.random() * 18,
+      delay: i * 0.025 + Math.random() * 0.18,
     }))
-    setParticles(p => [...p.slice(-12), ...burst])
-    setTimeout(() => setParticles(p => p.filter(px => !burst.find(b => b.id === px.id))), 2000)
+    setParticles(p => [...p.slice(-90), ...burst])
+    setTimeout(() => setParticles(p => p.filter(px => !burst.find(b => b.id === px.id))), 3000)
 
     try {
       const result = await sendReaction(user.id, match.id, r.id)
       if (result.capped) { setCapped(true); return }
       setMyCount(c => c + 1)
+      trackEvent('fan_arena_reaction_sent', {
+        ...matchAnalyticsParams(match, user),
+        contest_type: 'reaction',
+        reaction_type: r.id,
+        reaction_label: r.label,
+      })
     } catch { // ignore errors
 
       // Revert optimistic
@@ -54,8 +80,34 @@ export default function ReactionsTab({ match }) {
 
   return (
     <div style={{ position: 'relative', overflow: 'hidden' }}>
+      <AuthPromptModal
+        open={showLoginPop}
+        match={match}
+        icon="🔥"
+        title="Join the live roar"
+        message="The crowd is moving. Login to send reactions from your profile and make your energy count live."
+        cta="Login & react"
+        screen="react"
+        trigger="guest_reaction"
+        onClose={() => setShowLoginPop(false)}
+      />
       {particles.map(p => (
-        <div key={p.id} style={{ position: 'fixed', bottom: '35%', left: `${p.x}%`, fontSize: 24, animation: 'floatUp 2s ease-out forwards', pointerEvents: 'none', zIndex: 50 }}>
+        <div
+          key={p.id}
+          style={{
+            position: 'fixed',
+            bottom: `${p.bottom}%`,
+            left: `${p.x}%`,
+            fontSize: p.size,
+            animation: 'floatUp 2.7s ease-out forwards',
+            animationDelay: `${p.delay}s`,
+            animationFillMode: 'both',
+            opacity: 0,
+            pointerEvents: 'none',
+            zIndex: 50,
+            filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.55))',
+          }}
+        >
           {p.emoji}
         </div>
       ))}
@@ -64,6 +116,7 @@ export default function ReactionsTab({ match }) {
         <Pill color={C.orange} style={{ marginBottom: 8 }}><LiveDot color={C.orange} />Live Reactions</Pill>
         <h2 style={{ fontSize: 20, fontWeight: 900, color: '#fff', margin: 0 }}>Make your voice heard</h2>
         {capped && <p style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>Max 20 reactions per match reached</p>}
+        {loginNotice && <p style={{ fontSize: 12, color: C.yellow, marginTop: 8, fontWeight: 700 }}>{loginNotice}</p>}
       </div>
 
       {/* Momentum meter */}
@@ -76,7 +129,7 @@ export default function ReactionsTab({ match }) {
           <div style={{ width: `${energy}%`, height: '100%', borderRadius: 99, transition: 'width 0.4s', background: `linear-gradient(90deg, ${C.green}, ${C.orange}, #ef4444)` }} />
         </div>
         <p style={{ fontSize: 10, color: C.muted, marginTop: 8, textAlign: 'center' }}>
-          Your reactions: {myCount}/20 · No XP — just for fun
+          {user ? `Your reactions: ${myCount}/20 · No XP — just for fun` : 'Preview crowd energy · login to react live'}
         </p>
       </GlassCard>
 

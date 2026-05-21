@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { supabase, getPredictionQuestions, submitPrediction, getUserPredictions } from '../lib/supabase'
+import { matchAnalyticsParams, trackEvent } from '../lib/analytics'
 import { C, GlassCard } from '../components/UI'
+import AuthPromptModal from './AuthPromptModal'
 
 export default function PredictTab({ match }) {
   const { user } = useAuth()
@@ -11,13 +13,15 @@ export default function PredictTab({ match }) {
   const [loading, setLoading]     = useState(true)
   const [saving, setSaving]       = useState(null)
   const [submitted, setSubmitted] = useState(false)
+  const [loginNotice, setLoginNotice] = useState('')
+  const [showLoginPop, setShowLoginPop] = useState(false)
 
   useEffect(() => {
     async function load() {
       try {
         const [qs, preds] = await Promise.all([
           getPredictionQuestions(match.id),
-          getUserPredictions(user.id, match.id),
+          user?.id ? getUserPredictions(user.id, match.id) : Promise.resolve([]),
         ])
         setQuestions(qs)
         const map = {}
@@ -41,20 +45,42 @@ export default function PredictTab({ match }) {
     load()
     const t = setInterval(load, 15_000)
     return () => clearInterval(t)
-  }, [match.id, user.id])
+  }, [match.id, user?.id])
 
   async function handleAnswer(questionId, answer) {
     if (!match.predictions_open || saving === questionId || submitted || myAnswers[questionId]) return
+    trackEvent('fan_arena_predict_option_click', {
+      ...matchAnalyticsParams(match, user),
+      contest_type: 'prediction',
+      question_id: questionId,
+      answer,
+    })
+    if (!user?.id) {
+      setLoginNotice('Login to lock predictions and earn XP when your answers are correct.')
+      setShowLoginPop(true)
+      return
+    }
     setSaving(questionId)
     try {
       await submitPrediction(user.id, match.id, questionId, answer)
       setMyAnswers(prev => ({ ...prev, [questionId]: answer }))
+      trackEvent('fan_arena_predict_option_saved', {
+        ...matchAnalyticsParams(match, user),
+        contest_type: 'prediction',
+        question_id: questionId,
+        answer,
+      })
     } catch (e) { alert(e.message) }
     finally { setSaving(null) }
   }
 
 
   async function handleSubmitPredictions() {
+  if (!user?.id) {
+    setLoginNotice('Login to submit predictions and earn XP.')
+    setShowLoginPop(true)
+    return
+  }
   try {
     const { error } = await supabase
       .from('predictions')
@@ -63,6 +89,12 @@ export default function PredictTab({ match }) {
       .eq('match_id', match.id)
     if (error) throw error
     setSubmitted(true)
+    trackEvent('fan_arena_predictions_submitted', {
+      ...matchAnalyticsParams(match, user),
+      contest_type: 'prediction',
+      answered_count: answered,
+      question_count: questions.length,
+    })
     alert('Predictions submitted successfully!')
   } catch (e) {
     alert(e.message)
@@ -85,6 +117,17 @@ export default function PredictTab({ match }) {
 
   return (
     <div>
+      <AuthPromptModal
+        open={showLoginPop}
+        match={match}
+        icon="🎯"
+        title="Lock your prediction"
+        message="Your cricket instinct is ready. Login to save predictions, join the leaderboard, and earn XP when your calls are correct."
+        cta="Login & predict"
+        screen="predict"
+        trigger="guest_prediction"
+        onClose={() => setShowLoginPop(false)}
+      />
       {!canAnswer && (
         <div style={{
           background: `${C.orange}15`, border: `1px solid ${C.orange}40`,
@@ -95,7 +138,12 @@ export default function PredictTab({ match }) {
       )}
       <div style={{ textAlign: 'center', marginBottom: 16 }}>
         <h2 style={{ fontSize: 22, fontWeight: 900, color: '#fff', margin: '0 0 6px' }}>Match Predictions</h2>
-        <p style={{ fontSize: 12, color: C.muted }}>+75 XP only if your answer is correct (after results) · each pick is final</p>
+        <p style={{ fontSize: 12, color: C.muted }}>
+          {user ? '+75 XP only if your answer is correct (after results) · each pick is final' : 'Preview all questions · login to submit and earn XP'}
+        </p>
+        {loginNotice && (
+          <p style={{ fontSize: 12, color: C.yellow, marginTop: 8, fontWeight: 700 }}>{loginNotice}</p>
+        )}
         {canAnswer && (
           <>
             <div style={{ marginTop: 10, background: 'rgba(255,255,255,0.06)', borderRadius: 99, height: 5, overflow: 'hidden' }}>

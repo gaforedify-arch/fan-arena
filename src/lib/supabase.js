@@ -548,10 +548,37 @@ export async function getAllMatches() {
 // ─── VOTES ───────────────────────────────────────────────────
 
 export async function castTeamVote(userId, matchId, teamPicked) {
+    const { data: existing, error: readError } = await supabase
+        .from('votes')
+        .select('id, team_picked, vote_count')
+        .eq('user_id', userId)
+        .eq('match_id', matchId)
+        .maybeSingle()
+    if (readError) throw readError
+
+    if (existing) {
+        const currentCount = existing.vote_count || 1
+        if (existing.team_picked !== teamPicked) {
+            throw new Error('You already picked a team for this match')
+        }
+        if (currentCount >= 10) {
+            throw new Error('Maximum 10 votes reached for this match')
+        }
+        const { data, error } = await supabase
+            .from('votes')
+            .update({ vote_count: currentCount + 1 })
+            .eq('id', existing.id)
+            .select()
+            .single()
+        if (error) throw error
+        return data
+    }
+
     const { data, error } = await supabase
         .from('votes')
-        .upsert({ user_id: userId, match_id: matchId, team_picked: teamPicked }, { onConflict: 'user_id,match_id' })
-        .select().single()
+        .insert({ user_id: userId, match_id: matchId, team_picked: teamPicked, vote_count: 1 })
+        .select()
+        .single()
     if (error) throw error
     return data
 }
@@ -559,23 +586,27 @@ export async function castTeamVote(userId, matchId, teamPicked) {
 export async function getUserVote(userId, matchId) {
     const { data, error } = await supabase
         .from('votes')
-        .select('team_picked')
+        .select('team_picked, vote_count')
         .eq('user_id', userId)
         .eq('match_id', matchId)
         .maybeSingle()
     if (error) throw error
-    return data?.team_picked || null
+    return data ? { team_picked: data.team_picked, vote_count: data.vote_count || 1 } : null
 }
 
 export async function getVoteCounts(matchId) {
     const { data, error } = await supabase
         .from('votes')
-        .select('team_picked')
+        .select('team_picked, vote_count')
         .eq('match_id', matchId)
     if (error) throw error
     const rows = data || []
-    const a = rows.filter(v => v.team_picked === 'team_a').length || 0
-    const b = rows.filter(v => v.team_picked === 'team_b').length || 0
+    const a = rows
+        .filter(v => v.team_picked === 'team_a')
+        .reduce((sum, v) => sum + (v.vote_count || 1), 0)
+    const b = rows
+        .filter(v => v.team_picked === 'team_b')
+        .reduce((sum, v) => sum + (v.vote_count || 1), 0)
     const total = a + b || 1
     return {
         team_a: a,
@@ -583,6 +614,57 @@ export async function getVoteCounts(matchId) {
         total: a + b,
         pct_a: Math.round((a / total) * 100),
         pct_b: Math.round((b / total) * 100)
+    }
+}
+
+export async function getUserDashboard(userId) {
+    const [matches, votes, predictions, quizAnswers, playerVotes, reactions, ledger] = await Promise.all([
+        supabase
+            .from('matches')
+            .select('id, day_number, match_number, status, winner_team, team_a:teams!matches_team_a_id_fkey(short_name), team_b:teams!matches_team_b_id_fkey(short_name)')
+            .order('day_number', { ascending: false })
+            .order('match_number', { ascending: false }),
+        supabase
+            .from('votes')
+            .select('team_picked, vote_count, xp_awarded, match_id')
+            .eq('user_id', userId),
+        supabase
+            .from('predictions')
+            .select('answer, is_correct, xp_awarded, match_id, prediction_questions(question_text, correct_answer)')
+            .eq('user_id', userId),
+        supabase
+            .from('quiz_answers')
+            .select('answer, is_correct, xp_awarded, match_id, quiz_questions(question_text, correct_answer)')
+            .eq('user_id', userId),
+        supabase
+            .from('player_votes')
+            .select('category, match_id, players(name, role)')
+            .eq('user_id', userId),
+        supabase
+            .from('reactions')
+            .select('type, match_id, created_at')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(50),
+        supabase
+            .from('xp_ledger')
+            .select('xp_amount, reason, created_at, match_id')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(25),
+    ])
+
+    const errors = [matches.error, votes.error, predictions.error, quizAnswers.error, playerVotes.error, reactions.error, ledger.error].filter(Boolean)
+    if (errors.length) throw errors[0]
+
+    return {
+        matches: matches.data || [],
+        votes: votes.data || [],
+        predictions: predictions.data || [],
+        quizAnswers: quizAnswers.data || [],
+        playerVotes: playerVotes.data || [],
+        reactions: reactions.data || [],
+        ledger: ledger.data || [],
     }
 }
 
@@ -758,6 +840,26 @@ export async function getReactionCounts(matchId) {
     return counts
 }
 
+export function subscribeToMatchReactions(matchId, onReaction) {
+    const channel = supabase
+        .channel(`match-reactions:${matchId}`)
+        .on(
+            'postgres_changes',
+            {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'reactions',
+                filter: `match_id=eq.${matchId}`,
+            },
+            (payload) => onReaction(payload.new)
+        )
+        .subscribe()
+
+    return () => {
+        supabase.removeChannel(channel)
+    }
+}
+
 // ─── LEADERBOARD ─────────────────────────────────────────────
 
 export async function getLeaderboard(limit = 20) {
@@ -833,6 +935,13 @@ export async function adminUpdateMatch(matchId, updates) {
     return adminPatch('matches', `id=eq.${matchId}`, updates)
 }
 
+export async function adminDeleteMatch(matchId) {
+    await restRequest('matches', {
+        method: 'DELETE',
+        query: `?id=eq.${matchId}`,
+    })
+}
+
 export async function adminGetAllTeams() {
     if (useAdminFetch) {
         return adminSelect('teams', { select: '*', order: 'name.asc' })
@@ -866,6 +975,17 @@ export async function adminCreateTeam(teamData) {
     }
 }
 
+export async function adminUpdateTeam(teamId, updates) {
+    return adminPatch('teams', `id=eq.${teamId}`, updates)
+}
+
+export async function adminDeleteTeam(teamId) {
+    await restRequest('teams', {
+        method: 'DELETE',
+        query: `?id=eq.${teamId}`,
+    })
+}
+
 export async function adminGetPlayers(teamId) {
     const { data } = await supabase
         .from('players')
@@ -881,6 +1001,17 @@ export async function adminCreatePlayer(playerData) {
         .select().single()
     if (error) throw error
     return data
+}
+
+export async function adminUpdatePlayer(playerId, updates) {
+    return adminPatch('players', `id=eq.${playerId}`, updates)
+}
+
+export async function adminDeletePlayer(playerId) {
+    await restRequest('players', {
+        method: 'DELETE',
+        query: `?id=eq.${playerId}`,
+    })
 }
 
 export async function adminAddMatchPlayer(matchId, playerId, teamSide) {

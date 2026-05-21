@@ -6,13 +6,21 @@ import {
   getReactionCounts,
   getLeaderboard,
   getQuizQuestions,
+  subscribeToMatchReactions,
 } from '../lib/supabase'
 import { formatArenaStatusPill, formatMatchEventLine } from '../lib/matchLabel'
+import { matchAnalyticsParams, trackEvent } from '../lib/analytics'
 import { C, Pill, LiveDot, Bar, GlassCard } from '../components/UI'
 import FanAvatar from '../components/FanAvatar'
 import EdifyPromoBanner from '../components/EdifyPromoBanner'
 
 const PODIUM_EMOJI = ['🦁', '🦊', '🐱']
+const REACTION_EMOJI = {
+  fire: '🔥',
+  king: '👑',
+  choke: '💀',
+  robbed: '😭',
+}
 
 function HubCard({ icon, title, sub, badge, badgeColor, onClick, glow }) {
   return (
@@ -37,18 +45,27 @@ function HubCard({ icon, title, sub, badge, badgeColor, onClick, glow }) {
 }
 
 export default function ArenaHubPage({ match, onNavigate, onLogout }) {
-  const { profile } = useAuth()
+  const { user, profile } = useAuth()
   const [votePct, setVotePct] = useState({ pct_a: 50, pct_b: 50, total: 0 })
   const [qCount, setQCount] = useState(0)
   const [reactTotal, setReactTotal] = useState(0)
   const [topFans, setTopFans] = useState([])
   const [quizCount, setQuizCount] = useState(0)
+  const [videoReactions, setVideoReactions] = useState([])
 
   const activeFans = (votePct.total || 0) + reactTotal
 
   const teamA = match.team_a
   const teamB = match.team_b
   const live = match.status === 'live' || match.voting_open
+
+  function trackHubNav(destination) {
+    trackEvent('fan_arena_home_card_click', {
+      ...matchAnalyticsParams(match, user),
+      destination,
+    })
+    onNavigate(destination)
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -75,6 +92,28 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
       cancelled = true
       clearInterval(metaTimer)
     }
+  }, [match.id])
+
+  useEffect(() => {
+    return subscribeToMatchReactions(match.id, (reaction) => {
+      const emoji = REACTION_EMOJI[reaction?.type]
+      if (!emoji) return
+
+      const burst = Array.from({ length: 28 }).map((_, i) => ({
+        id: `${reaction.id || Date.now()}-${i}-${Math.random()}`,
+        emoji,
+        x: 5 + Math.random() * 90,
+        drift: -42 + Math.random() * 84,
+        delay: i * 0.035 + Math.random() * 0.24,
+        size: 20 + Math.random() * 18,
+      }))
+
+      setReactTotal(total => total + 1)
+      setVideoReactions(items => [...items.slice(-84), ...burst])
+      setTimeout(() => {
+        setVideoReactions(items => items.filter(r => !burst.some(b => b.id === r.id)))
+      }, 3200)
+    })
   }, [match.id])
 
   useEffect(() => {
@@ -106,16 +145,19 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
           </Pill>
           <div className="hub-top-actions">
             <div className="hub-xp-chip">
-              <span className="hub-xp-label">Your XP</span>
-              <span className="hub-xp-val">{profile?.total_xp?.toLocaleString() || 0}</span>
+              <span className="hub-xp-label">{user ? 'Your XP' : 'Login'}</span>
+              <span className="hub-xp-val">{user ? (profile?.total_xp?.toLocaleString() || 0) : 'Earn XP'}</span>
             </div>
-            {onLogout && (
+            {user && onLogout && (
               <button type="button" className="logout-btn" onClick={onLogout}>Logout</button>
+            )}
+            {!user && (
+              <button type="button" className="logout-btn" onClick={() => trackHubNav('login')}>Login</button>
             )}
           </div>
         </div>
         <div className="hub-meta-row">
-          <span className="hub-greeting">Hi, {profile?.name?.split(' ')[0] || 'Fan'}</span>
+          <span className="hub-greeting">{user ? `Hi, ${profile?.name?.split(' ')[0] || 'Fan'}` : 'Watch live. Login when you want to play.'}</span>
           <div className="hub-active-fans">
             <span className="hub-active-label">ACTIVE FANS</span>
             <span className="hub-active-val">{activeFans.toLocaleString()}</span>
@@ -124,18 +166,32 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
 
         <p className="hub-event-line">{formatMatchEventLine(match)} · {match.team_a?.short_name} vs {match.team_b?.short_name}</p>
 
-        <a
-          className="hub-108-live"
-          href="https://www.youtube.com/watch?v=7dkRmhvtXvI"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <span className="hub-108-live-icon" aria-hidden>▶</span>
-          <span className="hub-108-live-text">
-            <strong>Live scoring on 108 Live</strong>
-            <small>youtube.com/@108_Live/streams</small>
-          </span>
-        </a>
+        <div className="hub-108-live-video">
+          <iframe
+            src="https://www.youtube.com/embed/Ocev5WwqTw0"
+            title="108 Live"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+          />
+          <div className="hub-reaction-overlay" aria-hidden="true">
+            {videoReactions.map(reaction => (
+              <span
+                key={reaction.id}
+                className="hub-floating-reaction"
+                style={{
+                  left: `${reaction.x}%`,
+                  '--reaction-drift': `${reaction.drift}px`,
+                  fontSize: `${reaction.size}px`,
+                  animationDelay: `${reaction.delay}s`,
+                  animationFillMode: 'both',
+                  opacity: 0,
+                }}
+              >
+                {reaction.emoji}
+              </span>
+            ))}
+          </div>
+        </div>
 
         <div className="hub-scoreboard">
           <div className="hub-team">
@@ -173,7 +229,7 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
           badge={votePct.total > 0 ? `${votePct.total.toLocaleString()} VOTES` : 'VOTE'}
           badgeColor={C.green}
           glow={C.green}
-          onClick={() => onNavigate('vote')}
+          onClick={() => trackHubNav('vote')}
         />
         <HubCard
           icon="🎯"
@@ -182,7 +238,7 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
           badge={qCount > 0 ? `${qCount} OPEN` : 'SOON'}
           badgeColor={C.blue}
           glow={C.blue}
-          onClick={() => onNavigate('predict')}
+          onClick={() => trackHubNav('predict')}
         />
         <HubCard
           icon="🔥"
@@ -191,7 +247,7 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
           badge="HOT 🔥"
           badgeColor={C.orange}
           glow={C.orange}
-          onClick={() => onNavigate('react')}
+          onClick={() => trackHubNav('react')}
         />
         <HubCard
           icon="🏆"
@@ -200,7 +256,7 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
           badge="NEW"
           badgeColor={C.yellow}
           glow={C.yellow}
-          onClick={() => onNavigate('players')}
+          onClick={() => trackHubNav('players')}
         />
         <HubCard
           icon="📝"
@@ -209,14 +265,14 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
           badge={quizCount > 0 ? `${quizCount} Q` : 'SOON'}
           badgeColor={C.purple}
           glow={C.purple}
-          onClick={() => onNavigate('quiz')}
+          onClick={() => trackHubNav('quiz')}
         />
       </div>
 
       <section className="hub-section">
         <div className="hub-section-head">
           <h3>#EdifyFanMoment</h3>
-          <button type="button" className="hub-link" onClick={() => onNavigate('rewards')}>Rewards →</button>
+          <button type="button" className="hub-link" onClick={() => trackHubNav('rewards')}>Rewards →</button>
         </div>
         <EdifyPromoBanner variant="contest" compact />
       </section>
@@ -224,7 +280,7 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
       <section className="hub-section">
         <div className="hub-section-head">
           <h3>Top Fans Right Now</h3>
-          <button type="button" className="hub-link" onClick={() => onNavigate('ranks')}>See all →</button>
+          <button type="button" className="hub-link" onClick={() => trackHubNav('ranks')}>See all →</button>
         </div>
         <GlassCard>
           {topFans.length === 0 ? (
@@ -234,7 +290,7 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
               <div key={fan.id} className="hub-fan-row">
                 <span className="hub-fan-rank">{i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'}</span>
                 <FanAvatar name={fan.name} size={36} emoji={PODIUM_EMOJI[i]} />
-                <span className="hub-fan-name">{fan.name}{fan.id === profile?.id ? ' (you)' : ''}</span>
+                <span className="hub-fan-name">{fan.name}{user && fan.id === profile?.id ? ' (you)' : ''}</span>
                 <span className="hub-fan-xp">{fan.total_xp?.toLocaleString()} XP</span>
               </div>
             ))
@@ -246,12 +302,12 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{ fontSize: 36 }}>🪪</div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 900, color: '#fff' }}>Your Fan Profile</div>
+            <div style={{ fontSize: 14, fontWeight: 900, color: '#fff' }}>{user ? 'Your Fan Profile' : 'Join Fan Arena'}</div>
             <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>
-              {profile?.name} · {profile?.total_xp?.toLocaleString() || 0} XP
+              {user ? `${profile?.name} · ${profile?.total_xp?.toLocaleString() || 0} XP` : 'Login before voting, predicting, or playing for XP'}
             </div>
           </div>
-          <button type="button" className="hub-link" onClick={() => onNavigate('ranks')}>Ranks →</button>
+          <button type="button" className="hub-link" onClick={() => trackHubNav('ranks')}>Ranks →</button>
         </div>
       </GlassCard>
     </div>

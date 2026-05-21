@@ -11,10 +11,11 @@ import ReactionsTab from '../components/ReactionsTab'
 import PlayerVoteTab from '../components/PlayerVoteTab'
 import LeaderboardTab from '../components/LeaderboardTab'
 import QuizTab from '../components/QuizTab'
+import UserDashboard from '../components/UserDashboard'
 import { formatArenaStatusPill } from '../lib/matchLabel'
 
 export default function ArenaShell({ match, tab }) {
-  const { profile } = useAuth()
+  const { user, profile } = useAuth()
   const activeTab = tab || 'home'
 
   function onNav(next) {
@@ -45,6 +46,8 @@ export default function ArenaShell({ match, tab }) {
         return <RewardsTab />
       case 'quiz':
         return <QuizTab match={match} />
+      case 'profile':
+        return <UserDashboard match={match} />
       default:
         return <ArenaHubPage match={match} onNavigate={onNav} onLogout={handleSignOut} />
     }
@@ -64,12 +67,18 @@ export default function ArenaShell({ match, tab }) {
           </Pill>
           <div className="arena-compact-actions">
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 9, color: C.muted }}>Your XP</div>
+              <div style={{ fontSize: 9, color: C.muted }}>{user ? 'Your XP' : 'Login'}</div>
               <div style={{ fontSize: 16, fontWeight: 900, color: C.yellow }}>
-                {profile?.total_xp?.toLocaleString() || 0}
+                {user ? (profile?.total_xp?.toLocaleString() || 0) : 'Earn XP'}
               </div>
             </div>
-            <button type="button" className="logout-btn" onClick={handleSignOut}>Logout</button>
+            <button
+              type="button"
+              className="logout-btn"
+              onClick={user ? handleSignOut : () => onNav('login')}
+            >
+              {user ? 'Logout' : 'Login'}
+            </button>
           </div>
         </header>
       )}
