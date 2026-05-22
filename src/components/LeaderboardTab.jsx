@@ -31,7 +31,7 @@ export default function LeaderboardTab() {
     async function load() {
       try {
         const [lb, rank] = await Promise.all([
-          getLeaderboard(20),
+          getLeaderboard(10),
           user?.id ? getUserRank(user.id) : Promise.resolve(null),
         ])
         setLeaders(lb || [])
@@ -48,7 +48,7 @@ export default function LeaderboardTab() {
   }, [user?.id])
 
   const top3 = leaders.slice(0, 3)
-  const rest = leaders.slice(3)
+  const rest = leaders.slice(3, 10)
   const podiumOrder = top3.length >= 3 ? [top3[1], top3[0], top3[2]] : top3
 
   if (loading) return <Spinner />

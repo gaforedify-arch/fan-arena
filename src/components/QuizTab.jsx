@@ -4,8 +4,9 @@ import { getQuizQuestions, submitQuizAnswer, getUserQuizAnswers } from '../lib/s
 import { matchAnalyticsParams, trackEvent } from '../lib/analytics'
 import { C, GlassCard } from '../components/UI'
 import AuthPromptModal from './AuthPromptModal'
+import PlayMoreGamesSheet from './PlayMoreGamesSheet'
 
-export default function QuizTab({ match }) {
+export default function QuizTab({ match, onNavigate }) {
   const { user } = useAuth()
   const [questions, setQuestions] = useState([])
   const [myAnswers, setMyAnswers] = useState({})
@@ -14,6 +15,7 @@ export default function QuizTab({ match }) {
   const [saving, setSaving] = useState(null)
   const [loginNotice, setLoginNotice] = useState('')
   const [showLoginPop, setShowLoginPop] = useState(false)
+  const [showGames, setShowGames] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -82,6 +84,15 @@ export default function QuizTab({ match }) {
       <div style={{ textAlign: 'center', padding: 40 }}>
         <div style={{ fontSize: 40, marginBottom: 16 }}>📝</div>
         <p style={{ color: C.muted, fontSize: 14 }}>No quiz questions yet.<br />Check back when the match quiz goes live.</p>
+        <section className="react-play-more">
+          <button type="button" onClick={() => setShowGames(true)}>Play More Games</button>
+          <p>Play, earn and swag</p>
+        </section>
+        <PlayMoreGamesSheet
+          open={showGames}
+          onClose={() => setShowGames(false)}
+          onNavigate={onNavigate}
+        />
       </div>
     )
   }
@@ -118,6 +129,10 @@ export default function QuizTab({ match }) {
         {loginNotice && (
           <p style={{ fontSize: 12, color: C.yellow, marginTop: 8, fontWeight: 700 }}>{loginNotice}</p>
         )}
+        <section className="react-play-more">
+          <button type="button" onClick={() => setShowGames(true)}>Play More Games</button>
+          <p>Play, earn and swag</p>
+        </section>
         {canAnswer && (
           <>
             <div style={{ marginTop: 10, background: 'rgba(255,255,255,0.06)', borderRadius: 99, height: 5, overflow: 'hidden' }}>
@@ -175,6 +190,11 @@ export default function QuizTab({ match }) {
           </GlassCard>
         )
       })}
+      <PlayMoreGamesSheet
+        open={showGames}
+        onClose={() => setShowGames(false)}
+        onNavigate={onNavigate}
+      />
     </div>
   )
 }

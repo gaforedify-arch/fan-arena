@@ -4,6 +4,7 @@ import { sendReaction, getReactionCounts } from '../lib/supabase'
 import { matchAnalyticsParams, trackEvent } from '../lib/analytics'
 import { C, GlassCard, Pill, LiveDot } from '../components/UI'
 import AuthPromptModal from './AuthPromptModal'
+import PlayMoreGamesSheet from './PlayMoreGamesSheet'
 
 const BTNS = [
   { id: 'fire',   emoji: '🔥', label: 'FIRE',   color: C.orange },
@@ -14,7 +15,7 @@ const BTNS = [
 
 function fmt(n) { return n > 999 ? `${(n / 1000).toFixed(1)}K` : n }
 
-export default function ReactionsTab({ match }) {
+export default function ReactionsTab({ match, onNavigate }) {
   const { user } = useAuth()
   const [counts, setCounts]       = useState({ fire: 0, king: 0, choke: 0, robbed: 0 })
   const [particles, setParticles] = useState([])
@@ -23,6 +24,7 @@ export default function ReactionsTab({ match }) {
   const [capped, setCapped]       = useState(false)
   const [loginNotice, setLoginNotice] = useState('')
   const [showLoginPop, setShowLoginPop] = useState(false)
+  const [showGames, setShowGames] = useState(false)
 
   useEffect(() => {
     getReactionCounts(match.id).then(c => {
@@ -156,6 +158,19 @@ export default function ReactionsTab({ match }) {
       <p style={{ textAlign: 'center', fontSize: 11, color: C.muted, marginTop: 12 }}>
         Tap to react · Crowd energy only (no points)
       </p>
+
+      <section className="react-play-more">
+        <button type="button" onClick={() => setShowGames(true)}>
+          Play More Games
+        </button>
+        <p>Play, earn and swag</p>
+      </section>
+
+      <PlayMoreGamesSheet
+        open={showGames}
+        onClose={() => setShowGames(false)}
+        onNavigate={onNavigate}
+      />
     </div>
   )
 }

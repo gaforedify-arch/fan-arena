@@ -38,7 +38,7 @@ export default function ArenaShell({ match, tab }) {
       case 'predict':
         return <PredictTab match={match} />
       case 'react':
-        return <ReactionsTab match={match} />
+        return <ReactionsTab match={match} onNavigate={onNav} />
       case 'players':
         return <PlayerVoteTab match={match} />
       case 'ranks':
@@ -46,7 +46,7 @@ export default function ArenaShell({ match, tab }) {
       case 'rewards':
         return <RewardsTab />
       case 'quiz':
-        return <QuizTab match={match} />
+        return <QuizTab match={match} onNavigate={onNav} />
       case 'profile':
         return <UserDashboard match={match} />
       default:

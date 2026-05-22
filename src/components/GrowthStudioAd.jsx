@@ -25,19 +25,27 @@ export default function GrowthStudioAd({ onClick }) {
       <span
         aria-hidden="true"
         style={{
-          width: 34,
+          width: 46,
           height: 34,
           borderRadius: 10,
-          background: `${C.green}22`,
-          border: `1px solid ${C.green}45`,
+          background: '#050505',
+          border: `1px solid ${C.red}45`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: 18,
           flexShrink: 0,
+          overflow: 'hidden',
         }}
       >
-        GS
+        <img
+          src="/promos/growth-studio-logo.jpeg"
+          alt=""
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+          }}
+        />
       </span>
       <span style={{ flex: 1, minWidth: 0 }}>
         <span style={{ display: 'block', fontSize: 9, color: C.green, fontWeight: 900, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 3 }}>

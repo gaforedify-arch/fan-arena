@@ -21,7 +21,7 @@ const RULES = [
   'Capture any exciting moment from the match',
   'Post on Instagram',
   'Use hashtag #EdifyFanMoment',
-  'Tag @Edifyfoundations in your post',
+  'Tag @edifyfoundations in your post',
   'Your account must be public',
 ]
 
@@ -96,7 +96,7 @@ function FanMomentContent({ compact }) {
       <div className="edify-promo-compact">
         <p className="edify-promo-hero-title">#EdifyFanMoment — Capture &amp; Win</p>
         <p className="edify-promo-lead">
-          Record a live moment, post with <strong>#EdifyFanMoment</strong>, tag <strong>@Edify</strong>.
+          Record a live moment, post with <strong>#EdifyFanMoment</strong>, tag <strong>@edifyfoundations</strong>.
         </p>
         <ul className="edify-promo-prize-chips">
           {PRIZES.slice(0, 3).map((p) => (
@@ -195,7 +195,7 @@ function ContestCta() {
   return (
     <div className="edify-promo-cta">
       <p>
-        Post on Instagram with <strong>#EdifyFanMoment</strong> and tag <strong>@Edifyfoundations</strong> (public
+        Post on Instagram with <strong>#EdifyFanMoment</strong> and tag <strong>@edifyfoundations</strong> (public
         account).
       </p>
       <a

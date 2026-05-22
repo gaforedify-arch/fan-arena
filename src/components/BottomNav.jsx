@@ -1,7 +1,5 @@
 const NAV = [
   { id: 'home', icon: '🏠', label: 'Home' },
-  { id: 'vote', icon: '🗳️', label: 'Vote' },
-  { id: 'react', icon: '🔥', label: 'React' },
   { id: 'ranks', icon: '🏆', label: 'Ranks' },
   { id: 'profile', icon: '👤', label: 'Profile' },
   { id: 'rewards', icon: '🎓', label: 'Rewards' },

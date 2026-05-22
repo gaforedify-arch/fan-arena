@@ -1,20 +1,23 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import {
+  castTeamVote,
+  getUserVote,
   getVoteCounts,
   getPredictionQuestions,
   getReactionCounts,
   getLeaderboard,
+  getUserRank,
   getQuizQuestions,
-  subscribeToMatchReactions,
 } from '../lib/supabase'
 import { formatArenaStatusPill, formatMatchEventLine } from '../lib/matchLabel'
 import { matchAnalyticsParams, trackEvent } from '../lib/analytics'
-import { C, Pill, LiveDot, Bar, GlassCard } from '../components/UI'
+import { C, Pill, LiveDot, GlassCard } from '../components/UI'
 import FanAvatar from '../components/FanAvatar'
 import EdifyPromoBanner from '../components/EdifyPromoBanner'
 import GrowthStudioAd from '../components/GrowthStudioAd'
 import TeamLogo from '../components/TeamLogo'
+import PlayMoreGamesSheet from '../components/PlayMoreGamesSheet'
 
 const PODIUM_EMOJI = ['🦁', '🦊', '🐱']
 const REACTION_EMOJI = {
@@ -22,6 +25,97 @@ const REACTION_EMOJI = {
   king: '👑',
   choke: '💀',
   robbed: '😭',
+}
+
+const MAX_TEAM_VOTES = 10
+const MAX_GUEST_TEAM_VOTES = 3
+const CROWD_TICK_MS = 14_000
+
+function stableNumber(value) {
+  return String(value || 'match').split('').reduce((hash, char) => {
+    return ((hash << 5) - hash + char.charCodeAt(0)) >>> 0
+  }, 0)
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value))
+}
+
+function guestVoteKey(matchId) {
+  return `fan-arena-guest-vote-${matchId}`
+}
+
+function guestVoteCountKey(matchId) {
+  return `fan-arena-guest-vote-count-${matchId}`
+}
+
+function crowdVoteKey(matchId) {
+  return `fan-arena-crowd-votes-${matchId}`
+}
+
+function getCrowdConfig(matchId) {
+  const seed = stableNumber(matchId)
+  return {
+    start: 620 + (seed % 261),
+    cap: 1000 + (seed % 501),
+    pctA: 46 + ((seed >> 3) % 9),
+  }
+}
+
+function readCrowdVotes(matchId) {
+  const config = getCrowdConfig(matchId)
+  if (typeof window === 'undefined') return config.start
+
+  try {
+    const saved = JSON.parse(localStorage.getItem(crowdVoteKey(matchId)) || 'null')
+    const savedValue = typeof saved?.value === 'number' ? saved.value : config.start
+    const savedAt = typeof saved?.updatedAt === 'number' ? saved.updatedAt : Date.now()
+    const elapsedTicks = Math.max(0, Math.floor((Date.now() - savedAt) / CROWD_TICK_MS))
+    const catchUp = Math.min(24, elapsedTicks)
+
+    return clamp(savedValue + catchUp, config.start, config.cap)
+  } catch {
+    return config.start
+  }
+}
+
+function readCrowdPctA(matchId) {
+  const config = getCrowdConfig(matchId)
+  if (typeof window === 'undefined') return config.pctA
+
+  try {
+    const saved = JSON.parse(localStorage.getItem(crowdVoteKey(matchId)) || 'null')
+    return clamp(typeof saved?.pctA === 'number' ? saved.pctA : config.pctA, 42, 58)
+  } catch {
+    return config.pctA
+  }
+}
+
+function saveCrowdVotes(matchId, value, pctA) {
+  if (typeof window === 'undefined') return
+
+  localStorage.setItem(crowdVoteKey(matchId), JSON.stringify({
+    value,
+    pctA,
+    updatedAt: Date.now(),
+  }))
+}
+
+function addVoteToCounts(counts, team, amount = 1) {
+  const previousTotal = counts.total || 0
+  const currentA = typeof counts.team_a === 'number' ? counts.team_a : Math.round(previousTotal * (counts.pct_a || 0) / 100)
+  const currentB = typeof counts.team_b === 'number' ? counts.team_b : Math.max(0, previousTotal - currentA)
+  const nextA = currentA + (team === 'team_a' ? amount : 0)
+  const nextB = currentB + (team === 'team_b' ? amount : 0)
+  const total = nextA + nextB || 1
+
+  return {
+    team_a: nextA,
+    team_b: nextB,
+    total,
+    pct_a: Math.round((nextA / total) * 100),
+    pct_b: Math.round((nextB / total) * 100),
+  }
 }
 
 function HubCard({ icon, title, sub, badge, badgeColor, onClick, glow }) {
@@ -53,13 +147,72 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
   const [reactTotal, setReactTotal] = useState(0)
   const [topFans, setTopFans] = useState([])
   const [quizCount, setQuizCount] = useState(0)
-  const [videoReactions, setVideoReactions] = useState([])
+  const [voted, setVoted] = useState(null)
+  const [voteCount, setVoteCount] = useState(0)
+  const [guestVote, setGuestVote] = useState(null)
+  const [castingVote, setCastingVote] = useState(false)
+  const [voteBurst, setVoteBurst] = useState([])
+  const [voteFlash, setVoteFlash] = useState('')
+  const [showGames, setShowGames] = useState(false)
+  const [rank, setRank] = useState(null)
+  const [showUnlock, setShowUnlock] = useState(false)
+  const [showVoteResult, setShowVoteResult] = useState(false)
+  const [crowdVotes, setCrowdVotes] = useState(() => readCrowdVotes(match.id))
+  const [crowdPctA, setCrowdPctA] = useState(() => readCrowdPctA(match.id))
 
-  const activeFans = (votePct.total || 0) + reactTotal
+  const crowdCap = getCrowdConfig(match.id).cap
+  const realActivity = (votePct.total || 0) + reactTotal
+  const activeFans = Math.max(realActivity, clamp(crowdVotes + realActivity, 0, crowdCap))
+  const displayTeamA = Math.round(crowdVotes * (crowdPctA / 100)) + (votePct.team_a || 0)
+  const displayTeamB = Math.max(0, crowdVotes - Math.round(crowdVotes * (crowdPctA / 100))) + (votePct.team_b || 0)
+  const displayVoteTotal = displayTeamA + displayTeamB
 
   const teamA = match.team_a
   const teamB = match.team_b
   const live = match.status === 'live' || match.voting_open
+  const selectedTeam = voted === 'team_a' ? teamA : voted === 'team_b' ? teamB : null
+  const heatPctA = displayVoteTotal > 0 ? clamp(Math.round((displayTeamA / displayVoteTotal) * 100), 0, 100) : 50
+  const heatPctB = 100 - heatPctA
+  const selectedPct = voted === 'team_a' ? heatPctA : voted === 'team_b' ? heatPctB : null
+  const leaderTeam = heatPctA >= heatPctB ? teamA : teamB
+  const trailingTeam = heatPctA >= heatPctB ? teamB : teamA
+  const leadGap = Math.abs(heatPctA - heatPctB)
+  const leaderPct = Math.max(heatPctA, heatPctB)
+  const displayFanWave = activeFans
+  const missionItems = [
+    { label: 'Play game', done: showUnlock },
+    { label: 'Vote', done: !!voted },
+    { label: 'Quiz', done: false },
+  ]
+  const missionDone = missionItems.filter(item => item.done).length
+  const activityFeed = [
+    {
+      id: 'crowd',
+      title: `${displayFanWave.toLocaleString()} fan wave moving`,
+      body: leaderTeam?.short_name
+        ? `${leaderTeam.short_name} momentum ahead by ${leadGap}% - ${trailingTeam?.short_name || 'opponents'} can still push back`
+        : 'Crowd meter is warming up',
+      tag: 'HEAT',
+    },
+    {
+      id: 'vote',
+      title: `${displayFanWave.toLocaleString()} fan votes moving`,
+      body: voted ? `You backed ${selectedTeam?.short_name || 'your team'} - boost them again` : 'Pick a team to join the fan battle',
+      tag: voted ? 'YOU' : 'VOTE',
+    },
+    {
+      id: 'react',
+      title: reactTotal > 0 ? `${reactTotal.toLocaleString()} reactions sent` : 'Reaction wave ready',
+      body: 'Tap React Live when the match gets heated',
+      tag: 'HOT',
+    },
+    ...topFans.slice(0, 2).map((fan, i) => ({
+      id: `fan-${fan.id}`,
+      title: `${fan.name} is #${i + 1}`,
+      body: `${fan.total_xp?.toLocaleString() || 0} XP on the leaderboard`,
+      tag: 'XP',
+    })),
+  ]
 
   function trackHubNav(destination) {
     trackEvent('fan_arena_home_card_click', {
@@ -67,6 +220,89 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
       destination,
     })
     onNavigate(destination)
+  }
+
+  function voteParams(team) {
+    const selected = team === 'team_a' ? teamA : teamB
+    return {
+      ...matchAnalyticsParams(match, user),
+      contest_type: 'team_vote',
+      team,
+      team_name: selected?.name,
+      team_short_name: selected?.short_name,
+      source: 'home_first_screen',
+    }
+  }
+
+  function launchVoteBurst(team, forceRoar = false) {
+    const selected = team === 'team_a' ? teamA : teamB
+    const pieces = Array.from({ length: forceRoar ? 34 : 14 }).map((_, i) => ({
+      id: `${Date.now()}-${i}-${Math.random()}`,
+      label: forceRoar ? 'ROAR' : '+1',
+      x: 8 + Math.random() * 84,
+      drift: -36 + Math.random() * 72,
+      delay: i * 0.025,
+      color: selected?.color_hex || C.green,
+    }))
+
+    setVoteBurst(items => [...items.slice(-40), ...pieces])
+    setTimeout(() => {
+      setVoteBurst(items => items.filter(item => !pieces.some(piece => piece.id === item.id)))
+    }, 2200)
+  }
+
+  async function handleHubVote(team) {
+    if (castingVote || (voted && voted !== team) || voteCount >= MAX_TEAM_VOTES) return
+    if (!user?.id && voteCount >= MAX_GUEST_TEAM_VOTES) {
+      setShowVoteResult(true)
+      setVoteFlash('Login to keep boosting your team')
+      return
+    }
+
+    trackEvent('fan_arena_vote_click', voteParams(team))
+    setCastingVote(true)
+
+    try {
+      let nextCount = voteCount + 1
+      let nextVotes = addVoteToCounts(votePct, team)
+
+      if (!user?.id) {
+        if (guestVote && guestVote !== team) return
+        if (voteCount >= MAX_GUEST_TEAM_VOTES) {
+          setShowVoteResult(true)
+          setVoteFlash('Login to keep boosting your team')
+          return
+        }
+        localStorage.setItem(guestVoteKey(match.id), team)
+        localStorage.setItem(guestVoteCountKey(match.id), String(nextCount))
+        setGuestVote(team)
+        trackEvent('fan_arena_guest_vote_saved', voteParams(team))
+      } else {
+        const saved = await castTeamVote(user.id, match.id, team)
+        nextCount = saved.vote_count || nextCount
+        nextVotes = await getVoteCounts(match.id)
+        getUserRank(user.id).then(setRank).catch(() => {})
+        trackEvent('fan_arena_vote_submitted', voteParams(team))
+      }
+
+      setVoted(team)
+      setVoteCount(nextCount)
+      setVotePct(nextVotes)
+      setShowUnlock(true)
+      setVoteFlash(`You are with ${team === 'team_a' ? nextVotes.pct_a : nextVotes.pct_b}% fans`)
+      setCrowdPctA(current => {
+        const nextPct = clamp(current + (team === 'team_a' ? 1 : -1), 42, 58)
+        saveCrowdVotes(match.id, crowdVotes, nextPct)
+        return nextPct
+      })
+      launchVoteBurst(team, nextVotes.total > 0 && nextVotes.total % 5 === 0)
+      setShowVoteResult(true)
+      setTimeout(() => setVoteFlash('Vote again to boost your team'), 5000)
+    } catch (err) {
+      alert(err.message)
+    } finally {
+      setCastingVote(false)
+    }
   }
 
   useEffect(() => {
@@ -97,25 +333,30 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
   }, [match.id])
 
   useEffect(() => {
-    return subscribeToMatchReactions(match.id, (reaction) => {
-      const emoji = REACTION_EMOJI[reaction?.type]
-      if (!emoji) return
+    setCrowdVotes(readCrowdVotes(match.id))
+    setCrowdPctA(readCrowdPctA(match.id))
 
-      const burst = Array.from({ length: 28 }).map((_, i) => ({
-        id: `${reaction.id || Date.now()}-${i}-${Math.random()}`,
-        emoji,
-        x: 5 + Math.random() * 90,
-        drift: -42 + Math.random() * 84,
-        delay: i * 0.035 + Math.random() * 0.24,
-        size: 20 + Math.random() * 18,
-      }))
+    const crowdTimer = setInterval(() => {
+      setCrowdVotes(current => {
+        const config = getCrowdConfig(match.id)
+        if (current >= config.cap) return current
 
-      setReactTotal(total => total + 1)
-      setVideoReactions(items => [...items.slice(-84), ...burst])
-      setTimeout(() => {
-        setVideoReactions(items => items.filter(r => !burst.some(b => b.id === r.id)))
-      }, 3200)
-    })
+        const roll = Math.random()
+        const bump = roll > 0.92 ? 3 : roll > 0.62 ? 2 : 1
+        const next = Math.min(config.cap, current + bump)
+        setCrowdPctA(currentPct => {
+          const votesForA = Array.from({ length: bump }).filter(() => Math.random() * 100 < currentPct).length
+          const votesForB = bump - votesForA
+          const shift = votesForA > votesForB ? 1 : votesForB > votesForA ? -1 : 0
+          const nextPct = clamp(currentPct + shift, 42, 58)
+          saveCrowdVotes(match.id, next, nextPct)
+          return nextPct
+        })
+        return next
+      })
+    }, CROWD_TICK_MS)
+
+    return () => clearInterval(crowdTimer)
   }, [match.id])
 
   useEffect(() => {
@@ -124,7 +365,9 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
       try {
         const votes = await getVoteCounts(match.id)
         if (cancelled) return
-        setVotePct(votes)
+        const savedGuestVote = user?.id ? null : localStorage.getItem(guestVoteKey(match.id))
+        const savedGuestCount = savedGuestVote ? Number(localStorage.getItem(guestVoteCountKey(match.id)) || 1) : 0
+        setVotePct(savedGuestVote ? addVoteToCounts(votes, savedGuestVote, savedGuestCount) : votes)
       } catch (e) {
         console.error('[ArenaHub] votes', e)
       }
@@ -135,7 +378,30 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
       cancelled = true
       clearInterval(voteTimer)
     }
-  }, [match.id])
+  }, [match.id, user?.id])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadUserVote() {
+      try {
+        const savedGuestVote = user?.id ? null : localStorage.getItem(guestVoteKey(match.id))
+        const savedGuestCount = savedGuestVote ? Number(localStorage.getItem(guestVoteCountKey(match.id)) || 1) : 0
+        const savedVote = user?.id ? await getUserVote(user.id, match.id) : null
+        if (cancelled) return
+        setGuestVote(savedGuestVote)
+        setVoted(savedVote?.team_picked || savedGuestVote)
+        setVoteCount(savedVote?.vote_count || savedGuestCount)
+        setShowUnlock(!!(savedVote?.team_picked || savedGuestVote))
+        if (user?.id) getUserRank(user.id).then(setRank).catch(() => {})
+      } catch (e) {
+        console.error('[ArenaHub] user vote', e)
+      }
+    }
+
+    loadUserVote()
+    return () => { cancelled = true }
+  }, [match.id, user?.id])
 
   return (
     <div className="arena-page arena-hub">
@@ -168,62 +434,165 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
 
         <p className="hub-event-line">{formatMatchEventLine(match)} · {match.team_a?.short_name} vs {match.team_b?.short_name}</p>
 
-        <div className="hub-108-live-video">
-          <iframe
-            src="https://www.youtube.com/embed/kqpopbHrCQs"
-            title="108 Live"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-          />
-          <div className="hub-reaction-overlay" aria-hidden="true">
-            {videoReactions.map(reaction => (
-              <span
-                key={reaction.id}
-                className="hub-floating-reaction"
-                style={{
-                  left: `${reaction.x}%`,
-                  '--reaction-drift': `${reaction.drift}px`,
-                  fontSize: `${reaction.size}px`,
-                  animationDelay: `${reaction.delay}s`,
-                  animationFillMode: 'both',
-                  opacity: 0,
-                }}
+        <div className="hub-live-strip">
+          <span><LiveDot color={C.red} />Live match stream</span>
+          <strong>108 Live is on YouTube</strong>
+          <button
+            type="button"
+            onClick={() => window.open('https://www.youtube.com/watch?v=th2xcu59SAI', '_blank', 'noopener,noreferrer')}
+          >
+            Watch
+          </button>
+        </div>
+
+        <section className="hub-vote-stage">
+          {voteBurst.map(piece => (
+            <span
+              key={piece.id}
+              className="hub-vote-burst"
+              style={{
+                left: `${piece.x}%`,
+                color: piece.color,
+                '--vote-drift': `${piece.drift}px`,
+                animationDelay: `${piece.delay}s`,
+              }}
+            >
+              {piece.label}
+            </span>
+          ))}
+          <div className="hub-stage-head">
+            <div>
+              <p className="hub-stage-kicker">Live fan battle</p>
+              <h1>Pick your winner</h1>
+            </div>
+            <div className="hub-mission">
+              <span>DONE</span>
+              <strong>{missionDone}/3</strong>
+            </div>
+          </div>
+
+          <div className="hub-war-alert">
+            <span>{leaderTeam?.short_name || 'Fans'} leading</span>
+            <strong>{leadGap}% gap</strong>
+          </div>
+
+          <div className="hub-pick-row">
+            {[
+              { key: 'team_a', team: teamA, pct: votePct.pct_a },
+              { key: 'team_b', team: teamB, pct: votePct.pct_b },
+            ].map(item => {
+              const isPicked = voted === item.key
+              const disabled = castingVote || (voted && voted !== item.key) || voteCount >= MAX_TEAM_VOTES
+              const color = item.team?.color_hex || (item.key === 'team_a' ? C.purple : C.orange)
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  className={`hub-pick-btn ${live ? 'hub-pick-btn-live' : ''} ${isPicked ? 'hub-pick-btn-picked' : ''}`}
+                  onClick={() => handleHubVote(item.key)}
+                  disabled={disabled}
+                  style={{
+                    '--team-color': color,
+                    borderColor: isPicked ? color : `${color}55`,
+                    boxShadow: isPicked ? `0 0 28px ${color}45` : undefined,
+                  }}
+                >
+                  <TeamLogo team={item.team} size={42} />
+                  <span>{item.team?.short_name || 'TBA'}</span>
+                  <strong>{item.key === 'team_a' ? heatPctA : heatPctB}%</strong>
+                  <small>
+                    {isPicked
+                      ? user?.id
+                        ? `Vote again ${voteCount}/${MAX_TEAM_VOTES}`
+                        : voteCount >= MAX_GUEST_TEAM_VOTES
+                          ? 'Login to boost more'
+                          : `Vote again ${voteCount}/${MAX_GUEST_TEAM_VOTES}`
+                      : 'Tap to vote'}
+                  </small>
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="hub-battle-meter">
+            <div className="hub-crowd-head">
+              <span>Live momentum fight</span>
+              <strong>{displayFanWave.toLocaleString()} fan wave</strong>
+            </div>
+            <div className="hub-battle-bar" style={{ '--team-a': teamA?.color_hex || C.purple, '--team-b': teamB?.color_hex || C.orange }}>
+              <div className="hub-battle-fill-a" style={{ width: `${heatPctA}%` }} />
+              <div className="hub-battle-fill-b" style={{ width: `${heatPctB}%` }} />
+              <div className="hub-battle-clash" style={{ left: `${heatPctA}%` }}>VS</div>
+            </div>
+            <div className="hub-battle-labels">
+              <span>{teamA?.short_name} {heatPctA}%</span>
+              <strong>{leaderTeam?.short_name} holds {leaderPct}%</strong>
+              <span>{heatPctB}% {teamB?.short_name}</span>
+            </div>
+          </div>
+
+          <div className="hub-vote-feedback">
+            {voteFlash || (voted ? `You backed ${selectedTeam?.short_name}` : 'One tap starts the game')}
+            {selectedPct !== null && <span>{selectedPct}% crowd support</span>}
+          </div>
+
+          <div className="hub-mission-list">
+            <div className="hub-mission-summary">
+              <strong>Streak checklist: {missionDone}/3</strong>
+              <span>{3 - missionDone} remaining</span>
+            </div>
+            {missionItems.map(item => (
+              <button
+                key={item.label}
+                type="button"
+                className={item.done ? 'hub-time-step hub-time-step-done' : 'hub-time-step'}
+                onClick={() => setShowGames(true)}
               >
-                {reaction.emoji}
-              </span>
+                <i>{item.done ? '✓' : '-'}</i>
+                <span>{item.label}</span>
+                <em>{item.done ? 'Done' : 'Remaining'}</em>
+              </button>
             ))}
           </div>
-        </div>
 
-        <div className="hub-scoreboard">
-          <div className="hub-team">
-            <TeamLogo team={teamA} size={42} style={{ marginBottom: 8 }} />
-            <div className="hub-team-name" style={{ color: teamA?.color_hex || C.purple }}>
-              {teamA?.short_name || 'TBA'}
-            </div>
-            <div className="hub-team-score">{match.score_a || '—'}</div>
-            {match.current_over && live && (
-              <div className="hub-team-over">OVER {match.current_over}</div>
-            )}
-          </div>
-          <div className="hub-vs">VS</div>
-          <div className="hub-team hub-team-right">
-            <TeamLogo team={teamB} size={42} style={{ marginLeft: 'auto', marginBottom: 8 }} />
-            <div className="hub-team-name" style={{ color: teamB?.color_hex || C.orange }}>
-              {teamB?.short_name || 'TBA'}
-            </div>
-            <div className="hub-team-score">{match.score_b || (match.status === 'upcoming' ? 'Yet to bat' : '—')}</div>
-          </div>
-        </div>
+          {rank && (
+            <div className="hub-rank-move">You moved to #{rank}</div>
+          )}
+        </section>
 
-        <div className="hub-support">
-          <div className="hub-support-labels">
-            <span>{teamA?.short_name} {votePct.pct_a}%</span>
-            <span>{votePct.pct_b}% {teamB?.short_name}</span>
-          </div>
-          <Bar pct={votePct.pct_a} color={teamA?.color_hex || C.purple} h={8} />
-        </div>
       </header>
+
+      {showVoteResult && voted && (
+        <div className="hub-vote-result" onClick={() => setShowVoteResult(false)}>
+          <section className="hub-vote-result-card" onClick={e => e.stopPropagation()}>
+            <button type="button" className="hub-result-close" onClick={() => setShowVoteResult(false)}>x</button>
+            <div className="hub-result-badge">⚡</div>
+            <p className="hub-result-alert">
+              {leaderTeam?.id === selectedTeam?.id ? `${selectedTeam?.short_name} still ahead` : `${selectedTeam?.short_name} closing the gap`}
+            </p>
+            <h2>Your vote pushed<br />{selectedTeam?.short_name} to {selectedPct}%</h2>
+            <p>
+              {selectedTeam?.short_name} fans are {leaderTeam?.id === selectedTeam?.id ? 'holding the line' : 'surging back'}.
+              Every vote moves the crowd fight.
+            </p>
+            <div className="hub-result-xp">+25 XP energy</div>
+            {!user?.id && voteCount >= MAX_GUEST_TEAM_VOTES ? (
+              <button type="button" className="hub-result-cta" onClick={() => trackHubNav('login')}>
+                Login to keep boosting
+              </button>
+            ) : (
+              <button type="button" className="hub-result-cta" onClick={() => setShowVoteResult(false)}>
+                Keep watching the battle
+              </button>
+            )}
+            <div className="hub-result-actions">
+              <button type="button">WhatsApp</button>
+              <button type="button">Copy</button>
+              <button type="button">Story</button>
+            </div>
+          </section>
+        </div>
+      )}
 
       <section className="hub-section">
         <GrowthStudioAd
@@ -235,25 +604,7 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
         />
       </section>
 
-      <div className="hub-grid">
-        <HubCard
-          icon="🗳️"
-          title="Vote Now"
-          sub="Pick your team"
-          badge={votePct.total > 0 ? `${votePct.total.toLocaleString()} VOTES` : 'VOTE'}
-          badgeColor={C.green}
-          glow={C.green}
-          onClick={() => trackHubNav('vote')}
-        />
-        <HubCard
-          icon="🎯"
-          title="Predict"
-          sub="Win XP + badges"
-          badge={qCount > 0 ? `${qCount} OPEN` : 'SOON'}
-          badgeColor={C.blue}
-          glow={C.blue}
-          onClick={() => trackHubNav('predict')}
-        />
+      <div className="hub-primary-actions">
         <HubCard
           icon="🔥"
           title="React Live"
@@ -264,29 +615,39 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
           onClick={() => trackHubNav('react')}
         />
         <HubCard
-          icon="🏆"
-          title="Player Picks"
-          sub="MOTM & more"
-          badge="NEW"
-          badgeColor={C.yellow}
-          glow={C.yellow}
-          onClick={() => trackHubNav('players')}
-        />
-        <HubCard
-          icon="📝"
-          title="Quiz"
-          sub="Test your knowledge"
-          badge={quizCount > 0 ? `${quizCount} Q` : 'SOON'}
-          badgeColor={C.purple}
-          glow={C.purple}
-          onClick={() => trackHubNav('quiz')}
+          icon="▶"
+          title="Play More"
+          sub={showUnlock ? 'Predictions, quiz, ranks' : 'Unlock after vote'}
+          badge={showUnlock ? 'OPEN' : 'LOCKED'}
+          badgeColor={showUnlock ? C.green : C.muted}
+          glow={showUnlock ? C.green : C.purple}
+          onClick={() => setShowGames(true)}
         />
       </div>
 
       <section className="hub-section">
         <div className="hub-section-head">
+          <h3>Live Activity</h3>
+          <button type="button" className="hub-link" onClick={() => trackHubNav('ranks')}>Ranks →</button>
+        </div>
+        <div className="hub-activity-feed">
+          {activityFeed.map(item => (
+            <div key={item.id} className="hub-activity-item">
+              <div className="hub-activity-dot" />
+              <div className="hub-activity-copy">
+                <strong>{item.title}</strong>
+                <span>{item.body}</span>
+              </div>
+              <em>{item.tag}</em>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="hub-section">
+        <div className="hub-section-head">
           <h3>#EdifyFanMoment</h3>
-          <button type="button" className="hub-link" onClick={() => trackHubNav('rewards')}>Rewards →</button>
+          <button type="button" className="hub-link" onClick={() => setShowGames(true)}>Games →</button>
         </div>
         <EdifyPromoBanner variant="contest" compact />
       </section>
@@ -312,18 +673,64 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
         </GlassCard>
       </section>
 
-      <GlassCard glow={C.purple} style={{ marginTop: 4 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{ fontSize: 36 }}>🪪</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 900, color: '#fff' }}>{user ? 'Your Fan Profile' : 'Join Fan Arena'}</div>
-            <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>
-              {user ? `${profile?.name} · ${profile?.total_xp?.toLocaleString() || 0} XP` : 'Login before voting, predicting, or playing for XP'}
+      <PlayMoreGamesSheet
+        open={showGames}
+        onClose={() => setShowGames(false)}
+        onNavigate={trackHubNav}
+        qCount={qCount}
+        quizCount={quizCount}
+        rank={rank}
+      />
+
+      {false && showGames && (
+        <div className="hub-games-backdrop" onClick={() => setShowGames(false)}>
+          <section className="hub-games-sheet" onClick={e => e.stopPropagation()}>
+            <div className="hub-games-handle" />
+            <div className="hub-section-head">
+              <h3>More games</h3>
+              <button type="button" className="hub-link" onClick={() => setShowGames(false)}>Close</button>
             </div>
-          </div>
-          <button type="button" className="hub-link" onClick={() => trackHubNav('ranks')}>Ranks →</button>
+            <div className="hub-grid">
+              <HubCard
+                icon="🎯"
+                title="Predict"
+                sub="Win XP + badges"
+                badge={qCount > 0 ? `${qCount} OPEN` : 'SOON'}
+                badgeColor={C.blue}
+                glow={C.blue}
+                onClick={() => trackHubNav('predict')}
+              />
+              <HubCard
+                icon="🏆"
+                title="Player Picks"
+                sub="MOTM & more"
+                badge="NEW"
+                badgeColor={C.yellow}
+                glow={C.yellow}
+                onClick={() => trackHubNav('players')}
+              />
+              <HubCard
+                icon="📝"
+                title="Quiz"
+                sub="Test your knowledge"
+                badge={quizCount > 0 ? `${quizCount} Q` : 'SOON'}
+                badgeColor={C.purple}
+                glow={C.purple}
+                onClick={() => trackHubNav('quiz')}
+              />
+              <HubCard
+                icon="🏆"
+                title="Ranks"
+                sub={rank ? `You are #${rank}` : 'Top fans'}
+                badge="LIVE"
+                badgeColor={C.green}
+                glow={C.green}
+                onClick={() => trackHubNav('ranks')}
+              />
+            </div>
+          </section>
         </div>
-      </GlassCard>
+      )}
     </div>
   )
 }
