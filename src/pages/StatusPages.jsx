@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { C, Btn, FullPageCenter, Pill, LiveDot } from '../components/UI'
 import { useMatch } from '../hooks/useMatch'
 import { navigateArena } from '../lib/hashRouter'
+import TeamLogo from '../components/TeamLogo'
 
 export function formatMatchTime(ts) {
   if (!ts) return 'Time to be announced'
@@ -62,11 +63,15 @@ export function MatchScheduleView({ match, subtitle, onEnter, enterLabel, onRefr
           {statusLabel(match)} · Day {match.day_number} · Match {match.match_number}
         </Pill>
 
-        <h1 style={{
-          fontSize: 28, fontWeight: 900, margin: '0 0 8px', color: '#fff',
-        }}>
-          {teamA} <span style={{ color: C.muted, fontWeight: 600 }}>vs</span> {teamB}
-        </h1>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginBottom: 8 }}>
+          <TeamLogo team={match.team_a} size={52} />
+          <h1 style={{
+            fontSize: 28, fontWeight: 900, margin: 0, color: '#fff',
+          }}>
+            {teamA} <span style={{ color: C.muted, fontWeight: 600 }}>vs</span> {teamB}
+          </h1>
+          <TeamLogo team={match.team_b} size={52} />
+        </div>
 
         <p style={{ fontSize: 13, color: C.muted, marginBottom: 24 }}>
           {subtitle || (live ? 'Match is live — join below to vote and earn XP.' : 'Scheduled start')}

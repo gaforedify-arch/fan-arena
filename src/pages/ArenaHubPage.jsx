@@ -13,6 +13,8 @@ import { matchAnalyticsParams, trackEvent } from '../lib/analytics'
 import { C, Pill, LiveDot, Bar, GlassCard } from '../components/UI'
 import FanAvatar from '../components/FanAvatar'
 import EdifyPromoBanner from '../components/EdifyPromoBanner'
+import GrowthStudioAd from '../components/GrowthStudioAd'
+import TeamLogo from '../components/TeamLogo'
 
 const PODIUM_EMOJI = ['🦁', '🦊', '🐱']
 const REACTION_EMOJI = {
@@ -168,7 +170,7 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
 
         <div className="hub-108-live-video">
           <iframe
-            src="https://www.youtube.com/embed/Ocev5WwqTw0"
+            src="https://www.youtube.com/embed/kqpopbHrCQs"
             title="108 Live"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
@@ -195,6 +197,7 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
 
         <div className="hub-scoreboard">
           <div className="hub-team">
+            <TeamLogo team={teamA} size={42} style={{ marginBottom: 8 }} />
             <div className="hub-team-name" style={{ color: teamA?.color_hex || C.purple }}>
               {teamA?.short_name || 'TBA'}
             </div>
@@ -205,6 +208,7 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
           </div>
           <div className="hub-vs">VS</div>
           <div className="hub-team hub-team-right">
+            <TeamLogo team={teamB} size={42} style={{ marginLeft: 'auto', marginBottom: 8 }} />
             <div className="hub-team-name" style={{ color: teamB?.color_hex || C.orange }}>
               {teamB?.short_name || 'TBA'}
             </div>
@@ -220,6 +224,16 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
           <Bar pct={votePct.pct_a} color={teamA?.color_hex || C.purple} h={8} />
         </div>
       </header>
+
+      <section className="hub-section">
+        <GrowthStudioAd
+          onClick={() => trackEvent('fan_arena_sponsor_ad_click', {
+            ...matchAnalyticsParams(match, user),
+            sponsor: 'Growth Studio',
+            destination: 'mailto',
+          })}
+        />
+      </section>
 
       <div className="hub-grid">
         <HubCard

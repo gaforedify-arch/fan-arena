@@ -12,6 +12,7 @@ import PlayerVoteTab from '../components/PlayerVoteTab'
 import LeaderboardTab from '../components/LeaderboardTab'
 import QuizTab from '../components/QuizTab'
 import UserDashboard from '../components/UserDashboard'
+import TeamLogo from '../components/TeamLogo'
 import { formatArenaStatusPill } from '../lib/matchLabel'
 
 export default function ArenaShell({ match, tab }) {
@@ -63,7 +64,11 @@ export default function ArenaShell({ match, tab }) {
           <Pill color={match.status === 'live' ? C.green : C.purple}>
             {match.status === 'live' && <LiveDot color={C.green} />}
             <span style={{ display: 'block', fontSize: 9, letterSpacing: 0.5 }}>{formatArenaStatusPill(match)}</span>
-            <span>{match.team_a?.short_name} vs {match.team_b?.short_name}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <TeamLogo team={match.team_a} size={18} />
+              {match.team_a?.short_name} vs {match.team_b?.short_name}
+              <TeamLogo team={match.team_b} size={18} />
+            </span>
           </Pill>
           <div className="arena-compact-actions">
             <div style={{ textAlign: 'right' }}>

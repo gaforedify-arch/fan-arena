@@ -7,6 +7,7 @@ import PredictTab     from '../components/PredictTab'
 import ReactionsTab   from '../components/ReactionsTab'
 import PlayerVoteTab  from '../components/PlayerVoteTab'
 import LeaderboardTab from '../components/LeaderboardTab'
+import TeamLogo from '../components/TeamLogo'
 
 const TABS = [
   { id: 'vote',      label: '🗳️ Vote',      component: VoteTab },
@@ -51,6 +52,7 @@ export default function MatchPage({ match }) {
 
         <div className="score-row">
           <div className="score-team">
+            <TeamLogo team={teamA} size={38} style={{ margin: '0 auto 8px' }} />
             <div className="score-name">{teamA?.short_name || 'TBA'}</div>
             <div className="score-val" style={{ color: teamA?.color_hex || C.purple }}>{match.score_a || '—'}</div>
           </div>
@@ -59,6 +61,7 @@ export default function MatchPage({ match }) {
             {match.current_over && <div className="score-over">{match.current_over}</div>}
           </div>
           <div className="score-team">
+            <TeamLogo team={teamB} size={38} style={{ margin: '0 auto 8px' }} />
             <div className="score-name">{teamB?.short_name || 'TBA'}</div>
             <div className="score-val" style={{ color: teamB?.color_hex || C.orange }}>{match.score_b || '—'}</div>
           </div>

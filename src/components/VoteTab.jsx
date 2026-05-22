@@ -3,6 +3,7 @@ import { useAuth } from '../hooks/useAuth'
 import { castTeamVote, getUserVote, getVoteCounts } from '../lib/supabase'
 import { matchAnalyticsParams, trackEvent } from '../lib/analytics'
 import { C, Bar, Pill, LiveDot } from '../components/UI'
+import TeamLogo from './TeamLogo'
 
 const MAX_TEAM_VOTES = 10
 
@@ -128,8 +129,8 @@ export default function VoteTab({ match, onXPEarned }) {
   }
 
   const teams = [
-    { key: 'team_a', name: teamA?.name, short: teamA?.short_name, color: teamA?.color_hex || C.purple, pct: counts.pct_a },
-    { key: 'team_b', name: teamB?.name, short: teamB?.short_name, color: teamB?.color_hex || C.orange, pct: counts.pct_b },
+    { key: 'team_a', team: teamA, name: teamA?.name, short: teamA?.short_name, color: teamA?.color_hex || C.purple, pct: counts.pct_a },
+    { key: 'team_b', team: teamB, name: teamB?.name, short: teamB?.short_name, color: teamB?.color_hex || C.orange, pct: counts.pct_b },
   ]
 
   if (loading) return <div style={{ color: C.muted, textAlign: 'center', padding: 40 }}>Loading votes...</div>
@@ -272,10 +273,13 @@ export default function VoteTab({ match, onXPEarned }) {
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <div>
-                  <div style={{ fontSize: 11, color: team.color, letterSpacing: 2, fontWeight: 700, marginBottom: 4 }}>TEAM</div>
-                  <div style={{ fontSize: 22, fontWeight: 900, color: '#fff' }}>{team.short}</div>
-                  <div style={{ fontSize: 12, color: C.muted }}>{team.name}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                  <TeamLogo team={team.team} size={48} />
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 11, color: team.color, letterSpacing: 2, fontWeight: 700, marginBottom: 4 }}>TEAM</div>
+                    <div style={{ fontSize: 22, fontWeight: 900, color: '#fff' }}>{team.short}</div>
+                    <div style={{ fontSize: 12, color: C.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team.name}</div>
+                  </div>
                 </div>
                 <div style={{ fontSize: 36, fontWeight: 900, color: team.color }}>{team.pct}%</div>
               </div>

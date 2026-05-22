@@ -8,6 +8,7 @@ import {
   adminRunPayout, adminPayQuestionPredictions, adminGetLeads
 } from '../lib/supabase'
 import { C, GlassCard, Btn, Input, Spinner, SectionLabel } from '../components/UI'
+import TeamLogo from '../components/TeamLogo'
 import { PLAYER_ROLES, DEFAULT_PLAYER_ROLE, formatPlayerRole } from '../lib/playerRoles'
 import QuizQuestionsManager from './QuizQuestionsManager'
 
@@ -1041,16 +1042,25 @@ function TeamRoster({ team, flash }) {
 }
 
 function TeamsSection({ teams, reload, flash }) {
-  const [form, setForm]   = useState({ name: '', short_name: '', color_hex: '#a855f7' })
+  const [form, setForm]   = useState({ name: '', short_name: '', color_hex: '#a855f7', logo_url: '' })
   const [editingTeamId, setEditingTeamId] = useState(null)
-  const [teamEdit, setTeamEdit] = useState({ name: '', short_name: '', color_hex: '#a855f7' })
+  const [teamEdit, setTeamEdit] = useState({ name: '', short_name: '', color_hex: '#a855f7', logo_url: '' })
   function set(k) { return e => setForm(f => ({ ...f, [k]: e.target.value })) }
 
   async function handleCreate() {
+    if (!form.name.trim() || !form.short_name.trim()) {
+      alert('Team name and short name are required.')
+      return
+    }
     try {
-      await adminCreateTeam(form)
+      await adminCreateTeam({
+        name: form.name.trim(),
+        short_name: form.short_name.trim(),
+        color_hex: form.color_hex,
+        logo_url: form.logo_url.trim() || null,
+      })
       flash('Team created!')
-      setForm({ name: '', short_name: '', color_hex: '#a855f7' })
+      setForm({ name: '', short_name: '', color_hex: '#a855f7', logo_url: '' })
       reload()
     } catch (e) { alert(e.message) }
   }
@@ -1061,6 +1071,7 @@ function TeamsSection({ teams, reload, flash }) {
       name: team.name || '',
       short_name: team.short_name || '',
       color_hex: team.color_hex || '#a855f7',
+      logo_url: team.logo_url || '',
     })
   }
 
@@ -1074,6 +1085,7 @@ function TeamsSection({ teams, reload, flash }) {
         name: teamEdit.name.trim(),
         short_name: teamEdit.short_name.trim(),
         color_hex: teamEdit.color_hex,
+        logo_url: teamEdit.logo_url.trim() || null,
       })
       setEditingTeamId(null)
       flash('Team updated')
@@ -1105,6 +1117,7 @@ function TeamsSection({ teams, reload, flash }) {
             <input type="color" value={form.color_hex} onChange={set('color_hex')} style={{ width: '100%', height: 46, borderRadius: 12, border: `1px solid ${C.border}`, background: 'none', cursor: 'pointer' }} />
           </div>
         </div>
+        <Input label="Logo URL" placeholder="https://..." value={form.logo_url} onChange={set('logo_url')} />
         <Btn onClick={handleCreate}>Add Team</Btn>
       </GlassCard>
 
@@ -1112,10 +1125,10 @@ function TeamsSection({ teams, reload, flash }) {
         {teams.map((team, i) => (
           <div key={team.id} style={{ padding: '12px 0', borderBottom: i < teams.length - 1 ? `1px solid ${C.border}` : 'none' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 32, height: 32, borderRadius: '50%', background: team.color_hex, flexShrink: 0 }} />
+              <TeamLogo team={team} size={34} />
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{team.name}</div>
-                <div style={{ fontSize: 11, color: C.muted }}>{team.short_name}</div>
+                <div style={{ fontSize: 11, color: C.muted }}>{team.short_name}{team.logo_url ? ' - logo added' : ''}</div>
               </div>
               <button type="button" onClick={() => startEditTeam(team)} style={{ ...smallBtn, color: C.blue, borderColor: `${C.blue}60` }}>Edit</button>
               <button type="button" onClick={() => deleteTeam(team)} style={{ ...smallBtn, color: C.red, borderColor: `${C.red}60` }}>Delete</button>
@@ -1128,6 +1141,7 @@ function TeamsSection({ teams, reload, flash }) {
                   <input placeholder="Short name" value={teamEdit.short_name} onChange={e => setTeamEdit(f => ({ ...f, short_name: e.target.value }))} style={inpStyle} />
                   <input type="color" value={teamEdit.color_hex} onChange={e => setTeamEdit(f => ({ ...f, color_hex: e.target.value }))} style={{ width: '100%', height: 40, borderRadius: 10, border: `1px solid ${C.border}`, background: 'none', cursor: 'pointer' }} />
                 </div>
+                <input placeholder="Logo URL" value={teamEdit.logo_url} onChange={e => setTeamEdit(f => ({ ...f, logo_url: e.target.value }))} style={{ ...inpStyle, width: '100%', marginBottom: 8 }} />
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button type="button" onClick={() => saveTeam(team.id)} style={{ ...smallBtn, flex: 1, color: C.green, borderColor: `${C.green}60` }}>Save Team</button>
                   <button type="button" onClick={() => setEditingTeamId(null)} style={{ ...smallBtn, flex: 1 }}>Cancel</button>
