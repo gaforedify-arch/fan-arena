@@ -487,8 +487,24 @@ export async function awardWelcomeXP(userId) {
     await supabase.rpc('award_xp', {
         p_user_id: userId,
         p_match_id: null,
-        p_amount: 50,
+        p_amount: 500,
         p_reason: 'welcome'
+    })
+}
+
+export async function awardProfileCompletionXP(userId) {
+    const { data: existing } = await supabase
+        .from('xp_ledger')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('reason', 'profile_completed')
+        .maybeSingle()
+    if (existing) return
+    await supabase.rpc('award_xp', {
+        p_user_id: userId,
+        p_match_id: null,
+        p_amount: 400,
+        p_reason: 'profile_completed'
     })
 }
 

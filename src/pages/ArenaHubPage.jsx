@@ -12,12 +12,15 @@ import {
 } from '../lib/supabase'
 import { formatArenaStatusPill, formatMatchEventLine } from '../lib/matchLabel'
 import { matchAnalyticsParams, trackEvent } from '../lib/analytics'
+import { getTournamentEndDate, isBonusWindow, buildReferralLink } from '../lib/referral'
 import { C, Pill, LiveDot, GlassCard } from '../components/UI'
 import FanAvatar from '../components/FanAvatar'
 import EdifyPromoBanner from '../components/EdifyPromoBanner'
 import GrowthStudioAd from '../components/GrowthStudioAd'
 import TeamLogo from '../components/TeamLogo'
 import PlayMoreGamesSheet from '../components/PlayMoreGamesSheet'
+import ScholarshipTeaserCard from '../components/ScholarshipTeaserCard'
+import ScholarshipStatusCard from '../components/ScholarshipStatusCard'
 
 const PODIUM_EMOJI = ['🦁', '🦊', '🐱']
 const REACTION_EMOJI = {
@@ -157,9 +160,14 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
   const [rank, setRank] = useState(null)
   const [showUnlock, setShowUnlock] = useState(false)
   const [showVoteResult, setShowVoteResult] = useState(false)
+  const [bonusEnd, setBonusEnd] = useState(null)
+  const [countdown, setCountdown] = useState('')
+  const [linkCopied, setLinkCopied] = useState(false)
   const [crowdVotes, setCrowdVotes] = useState(() => readCrowdVotes(match.id))
   const [crowdPctA, setCrowdPctA] = useState(() => readCrowdPctA(match.id))
+  const [scholarshipOptedIn, setScholarshipOptedIn] = useState(() => localStorage.getItem('scholarship_opted_in') === 'true')
 
+  const hasVoted = !!voted
   const crowdCap = getCrowdConfig(match.id).cap
   const realActivity = (votePct.total || 0) + reactTotal
   const activeFans = Math.max(realActivity, clamp(crowdVotes + realActivity, 0, crowdCap))
@@ -180,9 +188,10 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
   const leaderPct = Math.max(heatPctA, heatPctB)
   const displayFanWave = activeFans
   const missionItems = [
-    { label: 'Play game', done: showUnlock },
-    { label: 'Vote', done: !!voted },
-    { label: 'Quiz', done: false },
+    { label: 'Vote', done: !!voted, xp: '+100 XP', emoji: '🗳️' },
+    { label: 'Play game', done: showUnlock, xp: '+100 XP', emoji: '🎮' },
+    { label: 'Quiz', done: false, xp: '+100 XP', emoji: '📝' },
+    { label: 'Refer', done: false, xp: '+200 XP', emoji: '🔗' },
   ]
   const missionDone = missionItems.filter(item => item.done).length
   const activityFeed = [
@@ -214,12 +223,59 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
     })),
   ]
 
+  function fmtCountdown(endStr) {
+    if (!endStr) return ''
+    const diff = new Date(endStr) - Date.now()
+    if (diff <= 0) return 'ENDED'
+    const h = Math.floor(diff / 3_600_000)
+    const m = Math.floor((diff % 3_600_000) / 60_000)
+    const s = Math.floor((diff % 60_000) / 1_000)
+    if (h >= 48) return `${Math.floor(h / 24)}d ${h % 24}h left`
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  }
+
+  function getShareLink() {
+    const code = profile?.ref_code || ''
+    return code ? buildReferralLink(code, match.slug) : window.location.href
+  }
+
+  function handleShareWhatsApp() {
+    const code = profile?.ref_code || ''
+    const link = getShareLink()
+    const text = `🏏 I just voted on Fan Arena!${code ? ` Join me — use my code *${code}* when you sign up and we both earn XP!` : ' Come vote and earn XP!'}\n${link}`
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
+  }
+
+  async function handleShareCopy() {
+    try {
+      await navigator.clipboard.writeText(getShareLink())
+      setLinkCopied(true)
+      setTimeout(() => setLinkCopied(false), 2200)
+    } catch { /* ignore */ }
+  }
+
+  function handleShareStory() {
+    const code = profile?.ref_code || ''
+    const link = getShareLink()
+    const text = `🏏 I'm on Fan Arena!${code ? ` Use my code ${code} to earn XP!` : ''} Come vote live!\n${link}`
+    if (navigator.share) {
+      navigator.share({ title: 'Fan Arena', text, url: link }).catch(() => {})
+    } else {
+      handleShareCopy()
+    }
+  }
+
   function trackHubNav(destination) {
     trackEvent('fan_arena_home_card_click', {
       ...matchAnalyticsParams(match, user),
       destination,
     })
     onNavigate(destination)
+  }
+
+  function openScholarship() {
+    if (voted) sessionStorage.setItem(`team_voted_${match.slug}`, voted)
+    onNavigate('scholarship')
   }
 
   function voteParams(team) {
@@ -289,6 +345,7 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
       setVoteCount(nextCount)
       setVotePct(nextVotes)
       setShowUnlock(true)
+      localStorage.setItem('fan_arena_has_voted', 'true')
       setVoteFlash(`You are with ${team === 'team_a' ? nextVotes.pct_a : nextVotes.pct_b}% fans`)
       setCrowdPctA(current => {
         const nextPct = clamp(current + (team === 'team_a' ? 1 : -1), 42, 58)
@@ -381,6 +438,23 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
   }, [match.id, user?.id])
 
   useEffect(() => {
+    if (voted) sessionStorage.setItem(`team_voted_${match.slug}`, voted)
+  }, [match.slug, voted])
+
+  useEffect(() => {
+    function refreshScholarshipOptIn() {
+      setScholarshipOptedIn(localStorage.getItem('scholarship_opted_in') === 'true')
+    }
+
+    window.addEventListener('storage', refreshScholarshipOptIn)
+    window.addEventListener('focus', refreshScholarshipOptIn)
+    return () => {
+      window.removeEventListener('storage', refreshScholarshipOptIn)
+      window.removeEventListener('focus', refreshScholarshipOptIn)
+    }
+  }, [])
+
+  useEffect(() => {
     let cancelled = false
 
     async function loadUserVote() {
@@ -393,6 +467,7 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
         setVoted(savedVote?.team_picked || savedGuestVote)
         setVoteCount(savedVote?.vote_count || savedGuestCount)
         setShowUnlock(!!(savedVote?.team_picked || savedGuestVote))
+        if (savedVote?.team_picked || savedGuestVote) localStorage.setItem('fan_arena_has_voted', 'true')
         if (user?.id) getUserRank(user.id).then(setRank).catch(() => {})
       } catch (e) {
         console.error('[ArenaHub] user vote', e)
@@ -403,8 +478,97 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
     return () => { cancelled = true }
   }, [match.id, user?.id])
 
+  useEffect(() => {
+    getTournamentEndDate().then(end => {
+      if (end && isBonusWindow(end)) {
+        setBonusEnd(end)
+        setCountdown(fmtCountdown(end))
+      }
+    }).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    if (!bonusEnd) return
+    const t = setInterval(() => {
+      const c = fmtCountdown(bonusEnd)
+      setCountdown(c)
+      if (c === 'ENDED') clearInterval(t)
+    }, 1000)
+    return () => clearInterval(t)
+  }, [bonusEnd])
+
   return (
     <div className="arena-page arena-hub">
+
+      {bonusEnd && countdown && countdown !== 'ENDED' && (
+        <div style={{
+          margin: '-14px -14px 14px',
+          padding: '10px 16px',
+          background: 'linear-gradient(90deg, rgba(251,191,36,0.18), rgba(249,115,22,0.12))',
+          borderBottom: '1px solid rgba(251,191,36,0.35)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 20 }}>⚡</span>
+            <div>
+              <p style={{ margin: 0, color: '#fbbf24', fontSize: 11, fontWeight: 900, letterSpacing: 0.5 }}>2× XP ON ALL GAMES</p>
+              <p style={{ margin: 0, color: '#888', fontSize: 9 }}>Vote · Quiz · Predictions · Referrals</p>
+            </div>
+          </div>
+          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+            <p style={{ margin: 0, color: '#888', fontSize: 8, fontWeight: 700, letterSpacing: 1 }}>ENDS IN</p>
+            <p style={{ margin: 0, color: '#fbbf24', fontSize: 18, fontWeight: 900, fontFamily: 'monospace', letterSpacing: 1 }}>{countdown}</p>
+          </div>
+        </div>
+      )}
+
+      <section style={{
+        margin: '0 0 14px',
+        padding: '14px 14px 12px',
+        borderRadius: 16,
+        border: `1px solid ${C.purple}50`,
+        background: `linear-gradient(145deg, ${C.purple}15, rgba(255,255,255,0.04))`,
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+          <div>
+            <p style={{ margin: 0, color: C.purple, fontSize: 9, fontWeight: 900, letterSpacing: 1.4 }}>YOUR MISSION TODAY</p>
+            <h3 style={{ margin: '3px 0 0', color: '#fff', fontSize: 15, fontWeight: 900, lineHeight: 1.2 }}>4 steps to earn XP</h3>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <span style={{ color: missionDone === 4 ? C.green : C.yellow, fontSize: 20, fontWeight: 900 }}>{missionDone}/4</span>
+            <p style={{ margin: 0, color: C.muted, fontSize: 9, fontWeight: 900 }}>DONE</p>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 10 }}>
+          {missionItems.map(item => (
+            <div
+              key={item.label}
+              role={item.label === 'Refer' ? 'button' : undefined}
+              tabIndex={item.label === 'Refer' ? 0 : undefined}
+              onClick={item.label === 'Refer' ? () => onNavigate('referral') : undefined}
+              style={{
+                borderRadius: 10, padding: '8px 4px', textAlign: 'center',
+                border: `1px solid ${item.done ? C.green : item.label === 'Refer' ? C.purple + '60' : C.border}`,
+                background: item.done ? `${C.green}15` : item.label === 'Refer' ? `${C.purple}10` : 'rgba(255,255,255,0.04)',
+                cursor: item.label === 'Refer' ? 'pointer' : 'default',
+              }}
+            >
+              <div style={{ fontSize: 16, marginBottom: 2 }}>{item.done ? '✅' : item.emoji}</div>
+              <p style={{ margin: '0 0 2px', color: item.done ? C.green : item.label === 'Refer' ? C.purple : '#fff', fontSize: 10, fontWeight: 900, lineHeight: 1.2 }}>{item.label}</p>
+              <p style={{ margin: 0, color: C.green, fontSize: 9, fontWeight: 900 }}>{item.xp}</p>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.1)' }}>
+          <div style={{ height: '100%', borderRadius: 2, width: `${(missionDone / 4) * 100}%`, background: missionDone === 4 ? C.green : C.purple, transition: 'width 0.6s ease' }} />
+        </div>
+        {missionDone === 0 && (
+          <p style={{ margin: '8px 0 0', color: C.muted, fontSize: 11, textAlign: 'center' }}>Scroll down and vote to begin →</p>
+        )}
+      </section>
+
       <header className="hub-header">
         <div className="hub-top-bar">
           <Pill color={live ? C.green : C.purple}>
@@ -412,6 +576,18 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
             {formatArenaStatusPill(match)}
           </Pill>
           <div className="hub-top-actions">
+            <button
+              type="button"
+              onClick={() => onNavigate('referral')}
+              style={{
+                background: 'rgba(168,85,247,0.15)', border: '1px solid rgba(168,85,247,0.35)',
+                borderRadius: 99, padding: '5px 10px',
+                color: '#a855f7', fontFamily: 'inherit', fontSize: 10, fontWeight: 900,
+                cursor: 'pointer', letterSpacing: 0.5, flexShrink: 0,
+              }}
+            >
+              🔗 Refer
+            </button>
             <div className="hub-xp-chip">
               <span className="hub-xp-label">{user ? 'Your XP' : 'Login'}</span>
               <span className="hub-xp-val">{user ? (profile?.total_xp?.toLocaleString() || 0) : 'Earn XP'}</span>
@@ -434,16 +610,6 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
 
         <p className="hub-event-line">{formatMatchEventLine(match)} · {match.team_a?.short_name} vs {match.team_b?.short_name}</p>
 
-        <div className="hub-live-strip">
-          <span><LiveDot color={C.red} />Live match stream</span>
-          <strong>108 Live is on YouTube</strong>
-          <button
-            type="button"
-            onClick={() => window.open('https://www.youtube.com/watch?v=th2xcu59SAI', '_blank', 'noopener,noreferrer')}
-          >
-            Watch
-          </button>
-        </div>
 
         <section className="hub-vote-stage">
           {voteBurst.map(piece => (
@@ -467,7 +633,7 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
             </div>
             <div className="hub-mission">
               <span>DONE</span>
-              <strong>{missionDone}/3</strong>
+              <strong>{missionDone}/4</strong>
             </div>
           </div>
 
@@ -509,6 +675,9 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
                           : `Vote again ${voteCount}/${MAX_GUEST_TEAM_VOTES}`
                       : 'Tap to vote'}
                   </small>
+                  {!isPicked && !disabled && (
+                    <em style={{ display: 'block', fontStyle: 'normal', color: C.green, fontSize: 9, fontWeight: 900, marginTop: 3 }}>+100 XP</em>
+                  )}
                 </button>
               )
             })}
@@ -536,31 +705,21 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
             {selectedPct !== null && <span>{selectedPct}% crowd support</span>}
           </div>
 
-          <div className="hub-mission-list">
-            <div className="hub-mission-summary">
-              <strong>Streak checklist: {missionDone}/3</strong>
-              <span>{3 - missionDone} remaining</span>
-            </div>
-            {missionItems.map(item => (
-              <button
-                key={item.label}
-                type="button"
-                className={item.done ? 'hub-time-step hub-time-step-done' : 'hub-time-step'}
-                onClick={() => setShowGames(true)}
-              >
-                <i>{item.done ? '✓' : '-'}</i>
-                <span>{item.label}</span>
-                <em>{item.done ? 'Done' : 'Remaining'}</em>
-              </button>
-            ))}
-          </div>
-
           {rank && (
             <div className="hub-rank-move">You moved to #{rank}</div>
           )}
         </section>
 
       </header>
+
+      {hasVoted && !scholarshipOptedIn && (
+        <ScholarshipTeaserCard onClick={openScholarship} />
+      )}
+      {hasVoted && scholarshipOptedIn && (
+        <ScholarshipStatusCard
+          onViewDetails={() => onNavigate('scholarship-confirmed')}
+        />
+      )}
 
       {showVoteResult && voted && (
         <div className="hub-vote-result" onClick={() => setShowVoteResult(false)}>
@@ -575,7 +734,23 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
               {selectedTeam?.short_name} fans are {leaderTeam?.id === selectedTeam?.id ? 'holding the line' : 'surging back'}.
               Every vote moves the crowd fight.
             </p>
-            <div className="hub-result-xp">+25 XP energy</div>
+            <div className="hub-result-xp">+100 XP energy</div>
+
+            {bonusEnd && countdown && countdown !== 'ENDED' && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, margin: '6px 0 10px', padding: '7px 14px', background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: 10 }}>
+                <span style={{ fontSize: 14 }}>⚡</span>
+                <span style={{ fontSize: 11, color: '#fbbf24', fontWeight: 900 }}>2× XP active</span>
+                <span style={{ fontSize: 13, color: '#fff', fontWeight: 900, fontFamily: 'monospace', letterSpacing: 1 }}>{countdown}</span>
+              </div>
+            )}
+
+            <div style={{ margin: '0 0 10px', padding: '10px 12px', background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: 10, textAlign: 'center' }}>
+              <p style={{ margin: '0 0 4px', fontSize: 11, color: '#a855f7', fontWeight: 900 }}>Earn even more XP</p>
+              <p style={{ margin: '0 0 8px', fontSize: 11, color: '#888', lineHeight: 1.4 }}>Refer a friend → earn 200 XP — highest reward in the app</p>
+              <button type="button" onClick={() => { setShowVoteResult(false); onNavigate('referral') }} style={{ background: 'rgba(168,85,247,0.2)', border: '1px solid rgba(168,85,247,0.4)', borderRadius: 8, padding: '6px 14px', color: '#a855f7', fontFamily: 'inherit', fontSize: 11, fontWeight: 900, cursor: 'pointer' }}>
+                🔗 Refer now
+              </button>
+            </div>
             {!user?.id && voteCount >= MAX_GUEST_TEAM_VOTES ? (
               <button type="button" className="hub-result-cta" onClick={() => trackHubNav('login')}>
                 Login to keep boosting
@@ -586,9 +761,22 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
               </button>
             )}
             <div className="hub-result-actions">
-              <button type="button">WhatsApp</button>
-              <button type="button">Copy</button>
-              <button type="button">Story</button>
+              <button type="button" onClick={handleShareWhatsApp}>
+                <span style={{ display: 'block', fontSize: 15, marginBottom: 2 }}>💬</span>
+                WhatsApp
+              </button>
+              <button
+                type="button"
+                onClick={handleShareCopy}
+                style={{ color: linkCopied ? '#22c55e' : undefined, borderColor: linkCopied ? '#22c55e40' : undefined }}
+              >
+                <span style={{ display: 'block', fontSize: 15, marginBottom: 2 }}>{linkCopied ? '✓' : '🔗'}</span>
+                {linkCopied ? 'Copied!' : 'Copy link'}
+              </button>
+              <button type="button" onClick={handleShareStory}>
+                <span style={{ display: 'block', fontSize: 15, marginBottom: 2 }}>📸</span>
+                Story
+              </button>
             </div>
           </section>
         </div>
@@ -599,7 +787,7 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
           onClick={() => trackEvent('fan_arena_sponsor_ad_click', {
             ...matchAnalyticsParams(match, user),
             sponsor: 'Growth Studio',
-            destination: 'mailto',
+            destination: 'growthsystems.edifyexternship.com',
           })}
         />
       </section>
@@ -608,7 +796,7 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
         <HubCard
           icon="🔥"
           title="React Live"
-          sub="Send your energy"
+          sub="Send energy · earn XP"
           badge="HOT 🔥"
           badgeColor={C.orange}
           glow={C.orange}
@@ -617,7 +805,7 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
         <HubCard
           icon="▶"
           title="Play More"
-          sub={showUnlock ? 'Predictions, quiz, ranks' : 'Unlock after vote'}
+          sub={showUnlock ? 'Predictions, quiz, ranks' : 'Vote first to unlock →'}
           badge={showUnlock ? 'OPEN' : 'LOCKED'}
           badgeColor={showUnlock ? C.green : C.muted}
           glow={showUnlock ? C.green : C.purple}
@@ -630,6 +818,7 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
           <h3>Live Activity</h3>
           <button type="button" className="hub-link" onClick={() => trackHubNav('ranks')}>Ranks →</button>
         </div>
+        <p style={{ margin: '0 0 10px', color: C.muted, fontSize: 11 }}>Your votes and reactions appear here live</p>
         <div className="hub-activity-feed">
           {activityFeed.map(item => (
             <div key={item.id} className="hub-activity-item">
@@ -657,6 +846,9 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
           <h3>Top Fans Right Now</h3>
           <button type="button" className="hub-link" onClick={() => trackHubNav('ranks')}>See all →</button>
         </div>
+        {!rank && (
+          <p style={{ margin: '0 0 10px', color: C.muted, fontSize: 11 }}>Cast your first vote to appear on the leaderboard</p>
+        )}
         <GlassCard>
           {topFans.length === 0 ? (
             <p style={{ color: C.muted, fontSize: 13, textAlign: 'center', padding: 12 }}>No rankings yet — be first!</p>
@@ -682,7 +874,7 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
         rank={rank}
       />
 
-      {false && showGames && (
+      {/*
         <div className="hub-games-backdrop" onClick={() => setShowGames(false)}>
           <section className="hub-games-sheet" onClick={e => e.stopPropagation()}>
             <div className="hub-games-handle" />
@@ -730,7 +922,8 @@ export default function ArenaHubPage({ match, onNavigate, onLogout }) {
             </div>
           </section>
         </div>
-      )}
+      */}
+
     </div>
   )
 }

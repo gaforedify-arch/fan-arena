@@ -111,7 +111,7 @@ export default function PlayerVoteTab({ match, onXPEarned }) {
               {cat.icon} {cat.label}
             </span>
             <span style={{ fontSize: 11, color: myVotes[cat.key] ? C.green : C.yellow }}>
-              {myVotes[cat.key] ? '✓ Voted' : '+75 XP'}
+              {myVotes[cat.key] ? '✓ Voted' : '+100 XP'}
             </span>
           </button>
         ))}
@@ -152,7 +152,7 @@ export default function PlayerVoteTab({ match, onXPEarned }) {
       ))}
 
       <p style={{ textAlign: 'center', fontSize: 11, color: C.muted, marginTop: 8 }}>
-        {user ? '+75 XP if your pick wins. Change anytime before match ends.' : 'You can browse the roster. Login before picking to earn XP.'}
+        {user ? '+100 XP if your pick wins. Change anytime before match ends.' : 'You can browse the roster. Login before picking to earn XP.'}
       </p>
     </div>
   )

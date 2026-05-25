@@ -235,7 +235,7 @@ function MatchesSection({ matches, teams, reload, flash }) {
     const b = match.team_b?.short_name || 'Team B'
     const winner = match.winner_team === 'team_a' ? a : match.winner_team === 'team_b' ? b : null
     const msg = winner
-      ? `Pay out XP for ${a} vs ${b}?\n\n• +100 XP to fans who voted ${winner}\n• +75 XP for any predictions not paid yet (green ✓ answers)\n\nThis cannot be undone.`
+      ? `Pay out XP for ${a} vs ${b}?\n\n• +100 XP to fans who voted ${winner}\n• +100 XP for any predictions not paid yet (green ✓ answers)\n\nThis cannot be undone.`
       : `Pay out XP for ${a} vs ${b}?\n\nThis cannot be undone.`
     if (!window.confirm(msg)) return
     try {
@@ -245,7 +245,7 @@ function MatchesSection({ matches, teams, reload, flash }) {
       if (vp === 0 && pp === 0) {
         flash('✓ Payout done — no new XP (fans may already have been paid when you marked correct answers)')
       } else {
-        flash(`✓ Paid: ${vp} vote(s) +${100 * vp} XP, ${pp} prediction(s) +${75 * pp} XP`)
+        flash(`✓ Paid: ${vp} vote(s) +${100 * vp} XP, ${pp} prediction(s) +${100 * pp} XP`)
       }
     } catch (e) { alert(e.message) }
   }
@@ -660,8 +660,8 @@ function QuestionsManager({ match, onUpdated, flash })
       }
       flash(
         paid > 0
-          ? `Correct: "${answer}" — +75 XP to ${paid} fan(s)`
-          : `Correct answer set: "${answer}" (green). Fans with this pick get +75 XP.`
+          ? `Correct: "${answer}" — +100 XP to ${paid} fan(s)`
+          : `Correct answer set: "${answer}" (green). Fans with this pick get +100 XP.`
       )
       load()
     } catch (e) {
@@ -737,7 +737,7 @@ async function deleteQuestion(questionId) {
       )}
       <p style={{ fontSize: 11, color: C.muted, marginBottom: 10, lineHeight: 1.5 }}>
         <strong style={{ color: C.green }}>Correct answer:</strong> tap the right option below — it turns green with ✓.
-        Fans who picked that option get <strong style={{ color: C.yellow }}>+75 XP</strong> (only if their pick matches).
+        Fans who picked that option get <strong style={{ color: C.yellow }}>+100 XP</strong> (only if their pick matches).
         Mark correct before or when you run payout; questions without a green ✓ do not pay prediction XP.
       </p>
 

@@ -64,8 +64,8 @@ export default function QuizQuestionsManager({ match, onUpdated, flash }) {
       } catch { /* trigger may have paid */ }
       flash(
         paid > 0
-          ? `Correct: "${answer}" — +50 XP to ${paid} fan(s)`
-          : `Correct answer set: "${answer}" (green). Fans with this pick get +50 XP.`
+          ? `Correct: "${answer}" — +100 XP to ${paid} fan(s)`
+          : `Correct answer set: "${answer}" (green). Fans with this pick get +100 XP.`
       )
       load()
     } catch (e) {
@@ -123,7 +123,7 @@ export default function QuizQuestionsManager({ match, onUpdated, flash }) {
         </p>
       )}
       <p style={{ fontSize: 11, color: C.muted, marginBottom: 10, lineHeight: 1.5 }}>
-        Separate from predictions. Tap the correct option (green ✓) — fans get <strong style={{ color: C.yellow }}>+50 XP</strong> per correct quiz answer.
+        Separate from predictions. Tap the correct option (green ✓) — fans get <strong style={{ color: C.yellow }}>+100 XP</strong> per correct quiz answer.
       </p>
 
       {adding && (

@@ -56,7 +56,7 @@ export default function PredictTab({ match }) {
       answer,
     })
     if (!user?.id) {
-      setLoginNotice('Login to lock predictions and earn XP when your answers are correct.')
+      setLoginNotice('Login to lock predictions and earn XP instantly.')
       setShowLoginPop(true)
       return
     }
@@ -139,7 +139,7 @@ export default function PredictTab({ match }) {
       <div style={{ textAlign: 'center', marginBottom: 16 }}>
         <h2 style={{ fontSize: 22, fontWeight: 900, color: '#fff', margin: '0 0 6px' }}>Match Predictions</h2>
         <p style={{ fontSize: 12, color: C.muted }}>
-          {user ? '+75 XP only if your answer is correct (after results) · each pick is final' : 'Preview all questions · login to submit and earn XP'}
+          {user ? '+100 XP instantly for every prediction · each pick is final' : 'Preview all questions · login to submit and earn XP'}
         </p>
         {loginNotice && (
           <p style={{ fontSize: 12, color: C.yellow, marginTop: 8, fontWeight: 700 }}>{loginNotice}</p>
@@ -189,21 +189,15 @@ export default function PredictTab({ match }) {
             </div>
             {myAnswer && (
               <p style={{ fontSize: 11, marginTop: 10, marginBottom: 0, color: C.muted }}>
-                Your pick is locked for this question.
-                {resultByQ[q.id]?.xp_awarded && resultByQ[q.id]?.is_correct === true && (
-                  <span style={{ display: 'block', color: C.green, fontWeight: 700, marginTop: 4 }}>
-                    ✓ Correct — +75 XP added
-                  </span>
+                Your pick is locked.
+                <span style={{ display: 'block', color: C.green, fontWeight: 700, marginTop: 4 }}>
+                  +100 XP earned!
+                </span>
+                {resultByQ[q.id]?.is_correct === true && (
+                  <span style={{ display: 'block', color: C.green, marginTop: 2 }}>✓ Correct answer!</span>
                 )}
-                {resultByQ[q.id]?.xp_awarded && resultByQ[q.id]?.is_correct === false && (
-                  <span style={{ display: 'block', color: C.muted, marginTop: 4 }}>
-                    Incorrect — no XP for this question
-                  </span>
-                )}
-                {!resultByQ[q.id]?.xp_awarded && (
-                  <span style={{ display: 'block', marginTop: 4 }}>
-                    XP pending until the correct answer is announced
-                  </span>
+                {resultByQ[q.id]?.is_correct === false && (
+                  <span style={{ display: 'block', color: C.muted, marginTop: 2 }}>Incorrect — but XP is yours!</span>
                 )}
               </p>
             )}

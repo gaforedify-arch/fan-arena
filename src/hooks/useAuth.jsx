@@ -4,12 +4,14 @@ import {
   fetchProfileByUserId,
   isProfileComplete,
   awardWelcomeXP,
+  awardProfileCompletionXP,
   createProfile,
   readCachedProfile,
   writeCachedProfile,
   saveDeviceSession,
   consumeAuthHash,
 } from '../lib/supabase'
+import { getPendingReferralCode, clearPendingReferralCode, processReferral } from '../lib/referral'
 
 const AuthContext = createContext(null)
 
@@ -115,13 +117,15 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
-  async function completeOnboarding({ name, phone, city, age }) {
+  async function completeOnboarding({ name, phone, pin, age }) {
     if (!user) throw new Error('No user')
-    const prof = await createProfile({ id: user.id, email: user.email, name, phone, city, age })
-    try {
-      await awardWelcomeXP(user.id)
-    } catch {
-      // welcome XP is optional if already granted
+    const prof = await createProfile({ id: user.id, email: user.email, name, phone, city: pin, age })
+    try { await awardWelcomeXP(user.id) } catch { /* already granted */ }
+    try { await awardProfileCompletionXP(user.id) } catch { /* already granted */ }
+    const pendingRef = getPendingReferralCode()
+    if (pendingRef) {
+      try { await processReferral(pendingRef, user.id) } catch { /* non-blocking */ }
+      clearPendingReferralCode()
     }
     writeCachedProfile(prof)
     setProfile(prof)

@@ -1,11 +1,13 @@
 import { C } from './UI'
 
-const GROWTH_STUDIO_MAILTO = 'mailto:info@edifyexternship.com?subject=i%20want%20to%20grow%20my%20business%20digitally'
+const GROWTH_STUDIO_URL = 'https://growthsystems.edifyexternship.com/'
 
 export default function GrowthStudioAd({ onClick }) {
   return (
     <a
-      href={GROWTH_STUDIO_MAILTO}
+      href={GROWTH_STUDIO_URL}
+      target="_blank"
+      rel="noopener noreferrer"
       onClick={onClick}
       className="growth-studio-ad"
       style={{

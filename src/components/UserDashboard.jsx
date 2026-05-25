@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { getUserDashboard } from '../lib/supabase'
 import { C, GlassCard, SectionLabel, Spinner } from './UI'
+import { navigateArena } from '../lib/hashRouter'
 
 function matchLabel(match) {
   if (!match) return 'Match'
@@ -166,6 +167,24 @@ export default function UserDashboard({ match }) {
           <div style={{ fontSize: 24, fontWeight: 900, color: '#fff', marginTop: 4 }}>{activities.length}</div>
         </GlassCard>
       </div>
+
+      <button
+        type="button"
+        onClick={() => navigateArena(match?.slug, 'referral')}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+          background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.35)',
+          borderRadius: 16, padding: '14px 16px', marginBottom: 12,
+          cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+        }}
+      >
+        <span style={{ fontSize: 28, flexShrink: 0 }}>🔗</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 900, color: '#fff' }}>Refer & Earn</div>
+          <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>Invite friends · earn 200 XP per referral — highest reward</div>
+        </div>
+        <span style={{ fontSize: 11, fontWeight: 900, color: C.purple, flexShrink: 0 }}>+200 XP →</span>
+      </button>
 
       {error && (
         <GlassCard style={{ marginBottom: 12 }}>

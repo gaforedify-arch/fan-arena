@@ -234,7 +234,7 @@ export default function VoteTab({ match, onXPEarned }) {
         <Pill color={C.green} style={{ marginBottom: 10 }}><LiveDot color={C.green} />Live Voting</Pill>
         <h2 style={{ fontSize: 24, fontWeight: 900, color: '#fff', margin: '0 0 6px' }}>Who wins today?</h2>
         <p style={{ fontSize: 12, color: C.muted }}>
-          {user ? `Vote up to ${MAX_TEAM_VOTES} times - +100 XP if correct` : 'Vote as a guest - login to lock XP rewards'}
+          {user ? `Vote up to ${MAX_TEAM_VOTES} times - +100 XP earned instantly` : 'Vote as a guest - login to lock XP rewards'}
         </p>
       </div>
 
@@ -246,7 +246,7 @@ export default function VoteTab({ match, onXPEarned }) {
             </p>
           ) : (
             <p style={{ color: C.green, fontWeight: 700, fontSize: 13 }}>
-              You backed {teams.find(t => t.key === voted)?.short}! Votes used: {voteCount}/{MAX_TEAM_VOTES}. +100 XP if they win.
+              You backed {teams.find(t => t.key === voted)?.short}! Votes used: {voteCount}/{MAX_TEAM_VOTES}. +100 XP earned!
             </p>
           )}
         </div>

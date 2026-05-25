@@ -23,10 +23,12 @@ export default function RewardsTab() {
       <GlassCard>
         <h3 style={{ fontSize: 14, fontWeight: 800, color: '#fff', marginBottom: 10 }}>How to earn XP</h3>
         <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: C.muted, lineHeight: 1.9 }}>
+          <li>+500 XP — welcome bonus (once)</li>
+          <li>+400 XP — complete your profile (once)</li>
+          <li>+200 XP — refer a friend (per referral)</li>
           <li>+100 XP — correct team vote (after match)</li>
-          <li>+75 XP — each correct prediction</li>
-          <li>+50 XP — each correct quiz answer</li>
-          <li>+50 XP — welcome bonus (once)</li>
+          <li>+100 XP — each correct prediction</li>
+          <li>+100 XP — each correct quiz answer</li>
           <li>Reactions — fun only, no XP</li>
         </ul>
       </GlassCard>

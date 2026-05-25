@@ -1,8 +1,10 @@
+import { useEffect, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { signOut } from '../lib/supabase'
 import { navigateArena } from '../lib/hashRouter'
 import { C, Pill, LiveDot } from '../components/UI'
 import BottomNav from '../components/BottomNav'
+import DoubleXPSlide from '../components/DoubleXPSlide'
 import ArenaHubPage from './ArenaHubPage'
 import RewardsTab from './RewardsTab'
 import VoteTab from '../components/VoteTab'
@@ -14,22 +16,35 @@ import QuizTab from '../components/QuizTab'
 import UserDashboard from '../components/UserDashboard'
 import TeamLogo from '../components/TeamLogo'
 import { formatArenaStatusPill } from '../lib/matchLabel'
+import ScholarshipRevealScreen from '../screens/ScholarshipRevealScreen'
+import ScholarshipConfirmedScreen from '../screens/ScholarshipConfirmedScreen'
+import ReferralPage from './ReferralPage'
+
+const DOUBLE_XP_KEY = 'double_xp_seen'
 
 export default function ArenaShell({ match, tab }) {
   const { user, profile } = useAuth()
   const activeTab = tab || 'home'
+  const [showDoubleXP, setShowDoubleXP] = useState(false)
 
-  function onNav(next) {
+  useEffect(() => {
+    if (!user) return
+    if (sessionStorage.getItem(DOUBLE_XP_KEY)) return
+    sessionStorage.setItem(DOUBLE_XP_KEY, '1')
+    setShowDoubleXP(true)
+  }, [user?.id])
+
+  const onNav = (next) => {
     navigateArena(match.slug, next)
   }
 
-  async function handleSignOut() {
+  const handleSignOut = async () => {
     if (!window.confirm('Sign out of Fan Arena?')) return
     await signOut()
     window.location.hash = ''
   }
 
-  function renderPage() {
+  const renderPage = () => {
     switch (activeTab) {
       case 'home':
         return <ArenaHubPage match={match} onNavigate={onNav} onLogout={handleSignOut} />
@@ -49,13 +64,29 @@ export default function ArenaShell({ match, tab }) {
         return <QuizTab match={match} onNavigate={onNav} />
       case 'profile':
         return <UserDashboard match={match} />
+      case 'referral':
+        return <ReferralPage match={match} />
+      case 'scholarship':
+        return (
+          <ScholarshipRevealScreen
+            matchSlug={match.slug}
+            teamVoted={sessionStorage.getItem(`team_voted_${match.slug}`) || ''}
+          />
+        )
+      case 'scholarship-confirmed':
+        return (
+          <ScholarshipConfirmedScreen
+            matchSlug={match.slug}
+            teamVoted={sessionStorage.getItem(`team_voted_${match.slug}`) || ''}
+          />
+        )
       default:
         return <ArenaHubPage match={match} onNavigate={onNav} onLogout={handleSignOut} />
     }
   }
 
   const showCompactHeader = activeTab !== 'home' && activeTab !== 'ranks'
-  const navActive = ['predict', 'players', 'quiz'].includes(activeTab) ? 'home' : activeTab
+  const navActive = ['predict', 'players', 'quiz', 'scholarship', 'scholarship-confirmed'].includes(activeTab) ? 'home' : activeTab
 
   return (
     <div className="arena-shell">
@@ -93,6 +124,10 @@ export default function ArenaShell({ match, tab }) {
       </main>
 
       <BottomNav active={navActive} onNav={onNav} />
+
+      {showDoubleXP && (
+        <DoubleXPSlide onDismiss={() => setShowDoubleXP(false)} />
+      )}
     </div>
   )
 }

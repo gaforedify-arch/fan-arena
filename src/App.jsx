@@ -1,13 +1,15 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { AuthProvider, useAuth } from './hooks/useAuth'
 import { MatchProvider, useMatch, MATCH_STATE } from './hooks/useMatch'
-import { parseHash } from './lib/hashRouter'
+import { parseHash, navigateArena } from './lib/hashRouter'
 import { captureAttribution, trackEvent } from './lib/analytics'
-import LoginPage from './pages/LoginPage'
+import { captureReferralCode } from './lib/referral'
 import { C } from './components/UI'
 
 const OnboardingPage = lazy(() => import('./pages/OnboardingPage'))
+const LoginPage = lazy(() => import('./pages/LoginPage'))
 const ArenaShell = lazy(() => import('./pages/ArenaShell'))
+const BattleLandingPage = lazy(() => import('./pages/BattleLandingPage'))
 const AdminPanel = lazy(() => import('./admin/AdminPanel'))
 const MatchHomePage = lazy(() => import('./pages/StatusPages').then((m) => ({ default: m.MatchHomePage })))
 const NotFoundPage = lazy(() => import('./pages/StatusPages').then((m) => ({ default: m.NotFoundPage })))
@@ -30,6 +32,16 @@ function AppInner() {
   const { user, profile, loading: authLoading } = useAuth()
   const { match, matchState, nextMatch, loading: matchLoading } = useMatch()
 
+  // After magic link login, navigate to the arena the user came from
+  useEffect(() => {
+    if (!user) return
+    const pendingSlug = localStorage.getItem('fan_arena_pending_slug')
+    if (pendingSlug) {
+      localStorage.removeItem('fan_arena_pending_slug')
+      navigateArena(pendingSlug, 'home')
+    }
+  }, [user])
+
   if (route.type === 'admin') {
     return (
       <Suspense fallback={<LoadingScreen label="Loading admin..." />}>
@@ -37,9 +49,24 @@ function AppInner() {
       </Suspense>
     )
   }
+  const hasEntered = slug ? localStorage.getItem(`arena_entered_${slug}`) === 'true' : true
+
   if (authLoading) return <LoadingScreen label="Loading..." />
-  if (wantsLogin && !user) return <LoginPage />
-  if (wantsLogin && !profile) {
+  if (!user && !hasEntered && slug) {
+    return (
+      <Suspense fallback={<LoadingScreen label="Loading..." />}>
+        <BattleLandingPage />
+      </Suspense>
+    )
+  }
+  if (wantsLogin && !user) {
+    return (
+      <Suspense fallback={<LoadingScreen label="Loading..." />}>
+        <LoginPage />
+      </Suspense>
+    )
+  }
+  if (user && !profile) {
     return (
       <Suspense fallback={<LoadingScreen label="Loading..." />}>
         <OnboardingPage />
@@ -82,6 +109,7 @@ export default function App() {
 
   useEffect(() => {
     captureAttribution()
+    captureReferralCode()
   }, [])
 
   useEffect(() => {

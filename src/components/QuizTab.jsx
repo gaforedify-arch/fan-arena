@@ -124,7 +124,7 @@ export default function QuizTab({ match, onNavigate }) {
       <div style={{ textAlign: 'center', marginBottom: 16 }}>
         <h2 style={{ fontSize: 22, fontWeight: 900, color: '#fff', margin: '0 0 6px' }}>Match Quiz</h2>
         <p style={{ fontSize: 12, color: C.muted }}>
-          {user ? '+50 XP per correct answer after results · each pick is final' : 'Preview the quiz · login to submit answers and earn XP'}
+          {user ? '+100 XP instantly for every answer · each pick is final' : 'Preview the quiz · login to submit answers and earn XP'}
         </p>
         {loginNotice && (
           <p style={{ fontSize: 12, color: C.yellow, marginTop: 8, fontWeight: 700 }}>{loginNotice}</p>
@@ -174,16 +174,14 @@ export default function QuizTab({ match, onNavigate }) {
             {myAnswer && (
               <p style={{ fontSize: 11, marginTop: 10, marginBottom: 0, color: C.muted }}>
                 Your pick is locked.
-                {resultByQ[q.id]?.xp_awarded && resultByQ[q.id]?.is_correct === true && (
-                  <span style={{ display: 'block', color: C.green, fontWeight: 700, marginTop: 4 }}>
-                    ✓ Correct — +50 XP added
-                  </span>
+                <span style={{ display: 'block', color: C.green, fontWeight: 700, marginTop: 4 }}>
+                  +100 XP earned!
+                </span>
+                {resultByQ[q.id]?.is_correct === true && (
+                  <span style={{ display: 'block', color: C.green, marginTop: 2 }}>✓ Correct answer!</span>
                 )}
-                {resultByQ[q.id]?.xp_awarded && resultByQ[q.id]?.is_correct === false && (
-                  <span style={{ display: 'block', marginTop: 4 }}>Incorrect — no XP for this question</span>
-                )}
-                {!resultByQ[q.id]?.xp_awarded && (
-                  <span style={{ display: 'block', marginTop: 4 }}>XP pending until the correct answer is announced</span>
+                {resultByQ[q.id]?.is_correct === false && (
+                  <span style={{ display: 'block', color: C.muted, marginTop: 2 }}>Incorrect — but XP is yours!</span>
                 )}
               </p>
             )}

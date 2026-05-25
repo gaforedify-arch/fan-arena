@@ -1,3 +1,18 @@
+export const MATCH_TABS = [
+  'home',
+  'vote',
+  'predict',
+  'react',
+  'players',
+  'ranks',
+  'rewards',
+  'quiz',
+  'profile',
+  'referral',
+  'scholarship',
+  'scholarship-confirmed',
+]
+
 export function parseHash() {
   const parts = window.location.hash.replace('#', '').split('/').filter(Boolean)
   if (parts[0] === 'admin') return { type: 'admin' }
