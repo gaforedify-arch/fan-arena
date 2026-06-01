@@ -16,6 +16,7 @@ export const MATCH_TABS = [
 export function parseHash() {
   const parts = window.location.hash.replace('#', '').split('/').filter(Boolean)
   if (parts[0] === 'admin') return { type: 'admin' }
+  if (parts[0] === 'premiure-league' || parts[0] === 'premier-league' || parts[0] === 'ipl') return { type: 'ipl' }
   if (parts[0] === 'match' && parts[1]) {
     return { type: 'match', slug: parts[1], tab: parts[2] || 'home' }
   }

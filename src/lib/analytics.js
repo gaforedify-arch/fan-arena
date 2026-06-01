@@ -1,5 +1,6 @@
 const FIRST_TOUCH_KEY = 'fan_arena_first_touch_attribution'
 const SESSION_TOUCH_KEY = 'fan_arena_session_attribution'
+const PENDING_ATTRIBUTION_KEY = 'fan_arena_pending_attribution'
 
 const ATTRIBUTION_KEYS = [
   'utm_source',
@@ -55,9 +56,33 @@ export function captureAttribution() {
 
   const existingFirstTouch = readStored(FIRST_TOUCH_KEY, window.localStorage)
   if (!existingFirstTouch) writeStored(FIRST_TOUCH_KEY, touch, window.localStorage)
+
+  // If URL has no UTM params (e.g. magic link callback), restore the attribution
+  // we saved just before the user clicked "send magic link", so we don't lose the
+  // original ad source (Facebook, Instagram, YouTube, etc.)
+  const hasUtms = ATTRIBUTION_KEYS.some(key => params.get(key))
+  if (!hasUtms) {
+    const pending = readStored(PENDING_ATTRIBUTION_KEY, window.localStorage)
+    if (pending) {
+      writeStored(SESSION_TOUCH_KEY, pending, window.sessionStorage)
+      try { window.localStorage.removeItem(PENDING_ATTRIBUTION_KEY) } catch {}
+      return pending
+    }
+  }
+
   writeStored(SESSION_TOUCH_KEY, touch, window.sessionStorage)
 
   return touch
+}
+
+export function saveAttributionForCallback() {
+  if (typeof window === 'undefined') return
+  try {
+    const session = window.sessionStorage.getItem(SESSION_TOUCH_KEY)
+    const first = window.localStorage.getItem(FIRST_TOUCH_KEY)
+    const data = session || first
+    if (data) window.localStorage.setItem(PENDING_ATTRIBUTION_KEY, data)
+  } catch {}
 }
 
 export function getAttributionParams() {

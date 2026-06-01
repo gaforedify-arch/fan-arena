@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useMatch } from '../hooks/useMatch'
 import { useAuth } from '../hooks/useAuth'
 import { sendMagicLink } from '../lib/supabase'
+import { saveAttributionForCallback } from '../lib/analytics'
 import { navigateArena, parseHash } from '../lib/hashRouter'
 import { C } from '../components/UI'
 import TeamLogo from '../components/TeamLogo'
@@ -67,7 +68,8 @@ export default function BattleLandingPage() {
       markEntered()
       // Store slug so consumeAuthHash can navigate back after magic link click
       if (slug) localStorage.setItem('fan_arena_pending_slug', slug)
-
+      saveAttributionForCallback()
+      window.fbq?.('track', 'Lead', { content_name: 'battle_landing' })
       const result = await sendMagicLink(email.trim())
 
       if (result?.instantLogin) {

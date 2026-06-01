@@ -95,6 +95,8 @@ export default function VoteTab({ match, onXPEarned }) {
   async function handleVote(team) {
     if (casting || (voted && voted !== team) || voteCount >= MAX_TEAM_VOTES) return
     trackEvent('fan_arena_vote_click', voteParams(team))
+    trackEvent('vote_now_clicked', voteParams(team))
+    trackEvent('team_selected', voteParams(team))
 
     if (!user?.id) {
       if (guestVote) return
@@ -121,6 +123,12 @@ export default function VoteTab({ match, onXPEarned }) {
       setCounts(await getVoteCounts(match.id))
       onXPEarned?.()
       trackEvent('fan_arena_vote_submitted', voteParams(team))
+      trackEvent('xp_earned', {
+        ...matchAnalyticsParams(match, user),
+        xp_amount: 100,
+        reason: 'team_vote',
+        source: 'vote_page',
+      })
     } catch (err) {
       alert(err.message)
     } finally {

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { navigateArena } from '../lib/hashRouter'
 import { C } from './UI'
+import { trackEvent } from '../lib/analytics'
 
 const COURSES = ['', 'B.Ed.', 'B.P.Ed.', 'M.Ed.', 'ITI Trades', 'D.Pharm', 'Polytechnic Diploma', 'Other']
 
@@ -51,6 +52,11 @@ export default function LeadCaptureForm({ personType, matchSlug, teamVoted }) {
 
       localStorage.setItem('scholarship_opted_in', 'true')
       gtagEvent('lead_form_submit_success', { person_type: personType, has_course: !!course })
+      trackEvent('scholarship_cta_clicked', {
+        source: 'lead_form_submit',
+        person_type: personType,
+        has_course: !!course,
+      })
       navigateArena(matchSlug, 'scholarship-confirmed')
     } catch (err) {
       const message = err?.message || 'Could not save your details. Please try again.'

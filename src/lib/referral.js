@@ -76,8 +76,11 @@ export function isBonusWindow(tournamentEndDate) {
   return daysLeft >= 0 && daysLeft <= 2
 }
 
-export function buildReferralLink(refCode, slug) {
+export function buildReferralLink(refCode, slug, source = '') {
   const base = `${window.location.origin}${window.location.pathname || '/'}`
   const hash = slug ? `#/match/${slug}/home` : ''
-  return `${base}?ref=${encodeURIComponent(refCode)}${hash}`
+  const utms = source
+    ? `&utm_source=${source}&utm_medium=referral_share&utm_campaign=friend_referral`
+    : ''
+  return `${base}?ref=${encodeURIComponent(refCode)}${utms}${hash}`
 }

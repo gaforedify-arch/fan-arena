@@ -44,6 +44,11 @@ export default function ReactionsTab({ match, onNavigate }) {
       reaction_type: r.id,
       reaction_label: r.label,
     })
+    trackEvent('reaction_clicked', {
+      ...matchAnalyticsParams(match, user),
+      reaction_type: r.id,
+      reaction_label: r.label,
+    })
     if (!user?.id) {
       setLoginNotice('Login to send live reactions.')
       setShowLoginPop(true)

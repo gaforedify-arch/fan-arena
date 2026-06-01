@@ -1,3 +1,5 @@
+import { trackEvent } from '../lib/analytics'
+
 const NAV = [
   { id: 'home', icon: '🏠', label: 'Home' },
   { id: 'ranks', icon: '🏆', label: 'Ranks' },
@@ -31,6 +33,17 @@ export default function BottomNav({ active, onNav }) {
           </button>
         )
       })}
+      <button
+        type="button"
+        className="bottom-nav-btn"
+        onClick={() => {
+          trackEvent('fan_arena_cross_promo_click', { source: 'bottom_nav', destination: 'ipl_landing' })
+          window.location.hash = '#/premiure-league'
+        }}
+      >
+        <span className="bottom-nav-icon">🏏</span>
+        <span className="bottom-nav-label">T20 Hub</span>
+      </button>
     </nav>
   )
 }

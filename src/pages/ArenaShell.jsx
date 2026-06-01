@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { signOut } from '../lib/supabase'
 import { navigateArena } from '../lib/hashRouter'
+import { trackEvent } from '../lib/analytics'
 import { C, Pill, LiveDot } from '../components/UI'
 import BottomNav from '../components/BottomNav'
 import DoubleXPSlide from '../components/DoubleXPSlide'
@@ -26,12 +27,26 @@ export default function ArenaShell({ match, tab }) {
   const { user, profile } = useAuth()
   const activeTab = tab || 'home'
   const [showDoubleXP, setShowDoubleXP] = useState(false)
+  const isT20 = match?.sport === 'ipl'
+
+  useEffect(() => {
+    if (isT20) {
+      document.body.setAttribute('data-sport', 'ipl')
+      document.body.style.background = '#f0f4ff'
+    }
+    return () => {
+      document.body.removeAttribute('data-sport')
+      document.body.style.background = ''
+    }
+  }, [isT20])
 
   useEffect(() => {
     if (!user) return
-    if (sessionStorage.getItem(DOUBLE_XP_KEY)) return
     sessionStorage.setItem(DOUBLE_XP_KEY, '1')
-    setShowDoubleXP(true)
+    window.fbq?.('track', 'ViewContent', {
+      content_name: 'arena',
+      content_category: isT20 ? 'ipl' : 'cricket',
+    })
   }, [user?.id])
 
   const onNav = (next) => {
@@ -102,6 +117,19 @@ export default function ArenaShell({ match, tab }) {
             </span>
           </Pill>
           <div className="arena-compact-actions">
+            {isT20 && (
+              <button
+                type="button"
+                className="logout-btn"
+                onClick={() => {
+                  trackEvent('fan_arena_cross_promo_click', { source: 'ipl_compact_header', destination: 'cricket_home' })
+                  window.location.hash = '#/'
+                }}
+                style={{ fontSize: 10, padding: '6px 10px' }}
+              >
+                ← Cricket
+              </button>
+            )}
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 9, color: C.muted }}>{user ? 'Your XP' : 'Login'}</div>
               <div style={{ fontSize: 16, fontWeight: 900, color: C.yellow }}>
@@ -119,16 +147,17 @@ export default function ArenaShell({ match, tab }) {
         </header>
       )}
 
-      <main className={`arena-main ${activeTab === 'ranks' ? 'arena-main-ranks' : ''}`}>
+      <main className={`arena-main arena-main-${activeTab} ${activeTab === 'ranks' ? 'arena-main-ranks' : ''}`}>
         {renderPage()}
       </main>
 
-      <BottomNav active={navActive} onNav={onNav} />
-
-      {showDoubleXP && (
-        <DoubleXPSlide onDismiss={() => setShowDoubleXP(false)} />
+      {isT20 && (
+        <p style={{ textAlign: 'center', fontSize: 9, color: '#64748b', lineHeight: 1.6, padding: '10px 16px 4px', margin: 0 }}>
+          This platform is an independent fan engagement experience and is not affiliated with, endorsed by, or sponsored by IPL or any official cricket league/team.
+        </p>
       )}
+
+      <BottomNav active={navActive} onNav={onNav} />
     </div>
   )
 }
-

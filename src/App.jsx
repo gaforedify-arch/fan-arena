@@ -11,6 +11,8 @@ const LoginPage = lazy(() => import('./pages/LoginPage'))
 const ArenaShell = lazy(() => import('./pages/ArenaShell'))
 const BattleLandingPage = lazy(() => import('./pages/BattleLandingPage'))
 const AdminPanel = lazy(() => import('./admin/AdminPanel'))
+const IPLHubPage = lazy(() => import('./pages/IPLHubPage'))
+const IPLLandingPage = lazy(() => import('./pages/IPLLandingPage'))
 const MatchHomePage = lazy(() => import('./pages/StatusPages').then((m) => ({ default: m.MatchHomePage })))
 const NotFoundPage = lazy(() => import('./pages/StatusPages').then((m) => ({ default: m.NotFoundPage })))
 
@@ -49,10 +51,31 @@ function AppInner() {
       </Suspense>
     )
   }
+
+  if (route.type === 'ipl' && window.location.hash === '#/ipl') {
+    window.location.hash = '#/premiure-league'
+    return <LoadingScreen label="Loading..." />
+  }
+
+  if (route.type === 'ipl') {
+    if (authLoading) return <LoadingScreen label="Loading..." />
+    if (user && !profile) {
+      return (
+        <Suspense fallback={<LoadingScreen />}>
+          <OnboardingPage />
+        </Suspense>
+      )
+    }
+    return (
+      <Suspense fallback={<LoadingScreen label="Loading..." />}>
+        <IPLLandingPage />
+      </Suspense>
+    )
+  }
   const hasEntered = slug ? localStorage.getItem(`arena_entered_${slug}`) === 'true' : true
 
   if (authLoading) return <LoadingScreen label="Loading..." />
-  if (!user && !hasEntered && slug) {
+  if (!user && !hasEntered && slug && !matchLoading && matchState !== MATCH_STATE.COMPLETED) {
     return (
       <Suspense fallback={<LoadingScreen label="Loading..." />}>
         <BattleLandingPage />
@@ -110,6 +133,16 @@ export default function App() {
   useEffect(() => {
     captureAttribution()
     captureReferralCode()
+    window.fbq?.('track', 'PageView')
+    const seenKey = 'fan_arena_seen_session'
+    if (localStorage.getItem(seenKey)) {
+      trackEvent('return_session', {
+        path: window.location.pathname,
+        hash: window.location.hash,
+      })
+    } else {
+      localStorage.setItem(seenKey, '1')
+    }
   }, [])
 
   useEffect(() => {
@@ -180,6 +213,7 @@ export default function App() {
         .hub-live-strip span { display: inline-flex; align-items: center; min-width: 0; color: ${C.red}; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
         .hub-live-strip strong { color: #fff; font-size: 11px; white-space: nowrap; }
         .hub-live-strip button { border: 1px solid rgba(255,255,255,.16); border-radius: 9px; background: rgba(255,255,255,.08); color: #fff; font-family: inherit; font-size: 11px; font-weight: 900; padding: 7px 9px; cursor: pointer; }
+        .hub-match-info-in-vote { display: none; }
         .hub-reaction-overlay { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 2; }
         .hub-floating-reaction { position: absolute; bottom: 12px; font-size: 28px; line-height: 1; filter: drop-shadow(0 3px 8px rgba(0,0,0,0.75)); animation: videoReactionFloat 3s ease-out forwards; will-change: transform, opacity; }
         .hub-greeting { font-size: 12px; color: ${C.muted}; font-weight: 600; }
@@ -367,6 +401,402 @@ export default function App() {
         .ranks-row-xp { text-align: right; }
         .ranks-row-xp-val { font-size: 14px; font-weight: 900; color: ${C.yellow}; }
         .ranks-row-xp-sub { font-size: 12px; text-align: right; margin-top: 2px; }
+
+        /* ── T20 Playoffs light theme ─────────────────────────── */
+        body[data-sport="ipl"] #app-root { background: #f0f4ff !important; }
+        body[data-sport="ipl"] .arena-shell { background: #f0f4ff !important; }
+        body[data-sport="ipl"] .arena-main { background: #f0f4ff !important; }
+
+        body[data-sport="ipl"] .arena-compact-header { background: #ffffff !important; border-bottom: 1px solid #e2e8f0 !important; }
+        body[data-sport="ipl"] .arena-compact-header * { color: #0f172a !important; }
+        body[data-sport="ipl"] .arena-compact-actions .logout-btn { border-color: #e2e8f0 !important; background: rgba(0,0,0,0.04) !important; color: #475569 !important; }
+
+        body[data-sport="ipl"] .bottom-nav { background: rgba(255,255,255,0.97) !important; border-top: 1px solid #e2e8f0 !important; backdrop-filter: blur(12px); }
+        body[data-sport="ipl"] .bottom-nav-btn { color: #94a3b8 !important; }
+        body[data-sport="ipl"] .bottom-nav-btn-active { color: #2563eb !important; }
+
+        body[data-sport="ipl"] .arena-main-vote,
+        body[data-sport="ipl"] .arena-main-predict,
+        body[data-sport="ipl"] .arena-main-react,
+        body[data-sport="ipl"] .arena-main-players,
+        body[data-sport="ipl"] .arena-main-quiz,
+        body[data-sport="ipl"] .arena-main-rewards,
+        body[data-sport="ipl"] .arena-main-profile,
+        body[data-sport="ipl"] .arena-main-referral {
+          color: #0f172a !important;
+        }
+        body[data-sport="ipl"] .arena-main-vote h2,
+        body[data-sport="ipl"] .arena-main-predict h2,
+        body[data-sport="ipl"] .arena-main-react h2,
+        body[data-sport="ipl"] .arena-main-players h2,
+        body[data-sport="ipl"] .arena-main-quiz h2,
+        body[data-sport="ipl"] .arena-main-rewards h2,
+        body[data-sport="ipl"] .arena-main-profile h2,
+        body[data-sport="ipl"] .arena-main-referral h2,
+        body[data-sport="ipl"] .arena-main-vote h3,
+        body[data-sport="ipl"] .arena-main-predict h3,
+        body[data-sport="ipl"] .arena-main-react h3,
+        body[data-sport="ipl"] .arena-main-players h3,
+        body[data-sport="ipl"] .arena-main-quiz h3,
+        body[data-sport="ipl"] .arena-main-rewards h3,
+        body[data-sport="ipl"] .arena-main-profile h3,
+        body[data-sport="ipl"] .arena-main-referral h3 {
+          color: #0f172a !important;
+        }
+        body[data-sport="ipl"] .arena-main-vote p,
+        body[data-sport="ipl"] .arena-main-predict p,
+        body[data-sport="ipl"] .arena-main-react p,
+        body[data-sport="ipl"] .arena-main-players p,
+        body[data-sport="ipl"] .arena-main-quiz p,
+        body[data-sport="ipl"] .arena-main-rewards p,
+        body[data-sport="ipl"] .arena-main-profile p,
+        body[data-sport="ipl"] .arena-main-referral p,
+        body[data-sport="ipl"] .arena-main-rewards li {
+          color: #475569 !important;
+        }
+        body[data-sport="ipl"] .arena-main-vote > div > div[style],
+        body[data-sport="ipl"] .arena-main-predict [style*="background: rgb(18, 18, 32)"],
+        body[data-sport="ipl"] .arena-main-predict [style*="background: #121220"],
+        body[data-sport="ipl"] .arena-main-react [style*="background: rgb(18, 18, 32)"],
+        body[data-sport="ipl"] .arena-main-react [style*="background: #121220"],
+        body[data-sport="ipl"] .arena-main-quiz [style*="background: rgb(18, 18, 32)"],
+        body[data-sport="ipl"] .arena-main-quiz [style*="background: #121220"],
+        body[data-sport="ipl"] .arena-main-players button,
+        body[data-sport="ipl"] .arena-main-rewards [style*="background: rgb(18, 18, 32)"],
+        body[data-sport="ipl"] .arena-main-rewards [style*="background: #121220"],
+        body[data-sport="ipl"] .arena-main-profile [style*="background: rgb(18, 18, 32)"],
+        body[data-sport="ipl"] .arena-main-profile [style*="background: #121220"],
+        body[data-sport="ipl"] .arena-main-referral [style*="background: rgb(18, 18, 32)"],
+        body[data-sport="ipl"] .arena-main-referral [style*="background: #121220"] {
+          background: #ffffff !important;
+          border-color: #dbe5f3 !important;
+          box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06) !important;
+        }
+        body[data-sport="ipl"] .arena-main-vote button:not([style*="linear-gradient"]),
+        body[data-sport="ipl"] .arena-main-predict button:not([style*="linear-gradient"]),
+        body[data-sport="ipl"] .arena-main-quiz button:not([style*="linear-gradient"]),
+        body[data-sport="ipl"] .arena-main-react button:not([style*="linear-gradient"]),
+        body[data-sport="ipl"] .arena-main-players button:not([style*="linear-gradient"]),
+        body[data-sport="ipl"] .arena-main-profile button:not([style*="linear-gradient"]),
+        body[data-sport="ipl"] .arena-main-referral button:not([style*="linear-gradient"]) {
+          color: #0f172a !important;
+        }
+        body[data-sport="ipl"] .arena-main-vote button span,
+        body[data-sport="ipl"] .arena-main-vote button div,
+        body[data-sport="ipl"] .arena-main-predict button,
+        body[data-sport="ipl"] .arena-main-quiz button,
+        body[data-sport="ipl"] .arena-main-react button span:last-child,
+        body[data-sport="ipl"] .arena-main-players button span,
+        body[data-sport="ipl"] .arena-main-players button div,
+        body[data-sport="ipl"] .arena-main-profile button div,
+        body[data-sport="ipl"] .arena-main-referral div {
+          color: #0f172a !important;
+        }
+        body[data-sport="ipl"] .arena-main-vote [style*="rgba(255,255,255,0.08)"],
+        body[data-sport="ipl"] .arena-main-predict [style*="rgba(255,255,255,0.06)"],
+        body[data-sport="ipl"] .arena-main-quiz [style*="rgba(255,255,255,0.06)"],
+        body[data-sport="ipl"] .arena-main-react [style*="rgba(255,255,255,0.06)"],
+        body[data-sport="ipl"] .arena-main-profile [style*="rgba(255,255,255,0.06)"],
+        body[data-sport="ipl"] .arena-main-referral [style*="rgba(255,255,255,0.06)"] {
+          background: #eef4ff !important;
+          border-color: #dbe5f3 !important;
+        }
+        body[data-sport="ipl"] .arena-main-predict [style*="rgba(255,255,255,0.04)"],
+        body[data-sport="ipl"] .arena-main-quiz [style*="rgba(255,255,255,0.04)"],
+        body[data-sport="ipl"] .arena-main-referral [style*="rgba(255,255,255,0.04)"] {
+          background: #f8fbff !important;
+          border-color: #dbe5f3 !important;
+          color: #334155 !important;
+        }
+        body[data-sport="ipl"] .arena-main-vote .edify-promo-btn,
+        body[data-sport="ipl"] .arena-main-predict .edify-promo-btn,
+        body[data-sport="ipl"] .arena-main-react .edify-promo-btn,
+        body[data-sport="ipl"] .arena-main-quiz .edify-promo-btn,
+        body[data-sport="ipl"] .arena-main-profile .edify-promo-btn {
+          color: #ffffff !important;
+        }
+        body[data-sport="ipl"] .react-play-more {
+          background: #ffffff !important;
+          border-color: #dbe5f3 !important;
+          box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06) !important;
+        }
+        body[data-sport="ipl"] .react-play-more p { color: #0f172a !important; }
+        body[data-sport="ipl"] .react-play-more > button { color: #ffffff !important; }
+
+        body[data-sport="ipl"] .hub-header { background: #ffffff !important; border-bottom: 1px solid #e2e8f0 !important; box-shadow: 0 2px 12px rgba(0,0,0,0.06) !important; }
+        body[data-sport="ipl"] .hub-header { display: flex !important; flex-direction: column !important; }
+        body[data-sport="ipl"] .hub-vote-stage { order: -1 !important; }
+        body[data-sport="ipl"] .hub-header > .hub-top-bar,
+        body[data-sport="ipl"] .hub-header > .hub-meta-row,
+        body[data-sport="ipl"] .hub-header > .hub-event-line {
+          display: none !important;
+        }
+        body[data-sport="ipl"] .hub-match-info-in-vote {
+          display: block !important;
+          margin: 0 0 12px !important;
+          padding: 10px !important;
+          border-radius: 12px !important;
+          background: #f8fbff !important;
+          border: 1px solid #e2e8f0 !important;
+        }
+        body[data-sport="ipl"] .hub-match-info-in-vote .hub-top-bar {
+          margin-bottom: 8px !important;
+        }
+        body[data-sport="ipl"] .hub-match-info-in-vote .hub-top-bar > span:first-child {
+          flex-direction: column !important;
+          align-items: flex-start !important;
+          gap: 2px !important;
+        }
+        body[data-sport="ipl"] .hub-match-info-in-vote .hub-meta-row {
+          margin-bottom: 8px !important;
+        }
+        body[data-sport="ipl"] .hub-match-info-in-vote .hub-event-line {
+          margin: 0 !important;
+        }
+        body[data-sport="ipl"] .hub-mission-panel-after-vote { display: none !important; }
+        body[data-sport="ipl"] .arena-hub { background: #f0f4ff !important; }
+        body[data-sport="ipl"] .hub-top-bar {
+          display: grid !important;
+          grid-template-columns: minmax(0, 1fr) auto !important;
+          align-items: center !important;
+          gap: 8px !important;
+          flex-wrap: nowrap !important;
+        }
+        body[data-sport="ipl"] .hub-top-bar > span:first-child {
+          min-width: 0 !important;
+          overflow: hidden !important;
+          white-space: nowrap !important;
+        }
+        body[data-sport="ipl"] .hub-top-actions {
+          justify-self: end !important;
+          margin-left: auto !important;
+          display: inline-flex !important;
+          align-items: center !important;
+          gap: 6px !important;
+          flex-shrink: 0 !important;
+          transform: translateX(56px) !important;
+        }
+        body[data-sport="ipl"] .hub-mission-panel {
+          background: linear-gradient(145deg, rgba(124,58,237,0.08), rgba(255,255,255,0.9)) !important;
+          border-color: rgba(124,58,237,0.25) !important;
+          box-shadow: 0 10px 26px rgba(15,23,42,0.06) !important;
+        }
+        body[data-sport="ipl"] .hub-mission-panel h3 { color: #0f172a !important; }
+        body[data-sport="ipl"] .hub-mission-panel p { color: #475569 !important; }
+        body[data-sport="ipl"] .hub-mission-panel [style*="color: rgb(255, 255, 255)"],
+        body[data-sport="ipl"] .hub-mission-panel [style*="color: #fff"] {
+          color: #0f172a !important;
+        }
+        body[data-sport="ipl"] .hub-mission-panel [style*="rgba(255,255,255,0.04)"] {
+          background: #ffffff !important;
+          border-color: #dbe5f3 !important;
+        }
+        body[data-sport="ipl"] .hub-mission strong { color: #f59e0b !important; }
+        body[data-sport="ipl"] .hub-greeting { color: #475569 !important; }
+        body[data-sport="ipl"] .hub-xp-label { color: #94a3b8 !important; }
+        body[data-sport="ipl"] .hub-xp-chip {
+          min-width: 66px !important;
+          height: 28px !important;
+          display: inline-flex !important;
+          flex-direction: column !important;
+          align-items: center !important;
+          justify-content: center !important;
+          padding: 3px 10px !important;
+          border-radius: 99px !important;
+          background: rgba(168,85,247,0.15) !important;
+          border: 1px solid rgba(168,85,247,0.35) !important;
+          text-align: center !important;
+          box-shadow: none !important;
+        }
+        body[data-sport="ipl"] .hub-xp-chip .hub-xp-label {
+          color: #7c3aed !important;
+          font-size: 7px !important;
+          line-height: 1 !important;
+          letter-spacing: 1px !important;
+        }
+        body[data-sport="ipl"] .hub-xp-val {
+          color: #7c3aed !important;
+          font-size: 11px !important;
+          line-height: 1.1 !important;
+        }
+        body[data-sport="ipl"] .hub-active-label { color: #94a3b8 !important; }
+        body[data-sport="ipl"] .hub-active-val { color: #0f172a !important; }
+        body[data-sport="ipl"] .hub-event-line { color: #64748b !important; }
+        body[data-sport="ipl"] .hub-team-name { color: #0f172a !important; }
+        body[data-sport="ipl"] .hub-team-score { color: #0f172a !important; }
+        body[data-sport="ipl"] .hub-vs { color: #94a3b8 !important; }
+        body[data-sport="ipl"] .hub-support-labels { color: #64748b !important; }
+        body[data-sport="ipl"] .hub-meta-row { color: #475569 !important; }
+
+        body[data-sport="ipl"] .hub-vote-stage { background: #ffffff !important; border: 1px solid #e2e8f0 !important; box-shadow: 0 2px 12px rgba(0,0,0,0.06) !important; }
+        body[data-sport="ipl"] .hub-stage-kicker { color: #16a34a !important; }
+        body[data-sport="ipl"] .hub-stage-head h1 { color: #0f172a !important; }
+        body[data-sport="ipl"] .hub-pick-btn span {
+          max-width: 100% !important;
+          color: #ffffff !important;
+          font-size: 12px !important;
+          line-height: 1.15 !important;
+          white-space: normal !important;
+          overflow-wrap: anywhere !important;
+          text-align: center !important;
+        }
+        body[data-sport="ipl"] .hub-battle-labels span,
+        body[data-sport="ipl"] .hub-battle-labels strong {
+          white-space: normal !important;
+          line-height: 1.2 !important;
+        }
+        body[data-sport="ipl"] .hub-crowd-head { color: #64748b !important; }
+        body[data-sport="ipl"] .hub-crowd-head strong { color: #0f172a !important; }
+        body[data-sport="ipl"] .hub-battle-bar { background: rgba(0,0,0,0.07) !important; border-color: #e2e8f0 !important; }
+        body[data-sport="ipl"] .hub-battle-clash { background: #ffffff !important; border-color: #e2e8f0 !important; color: #0f172a !important; box-shadow: 0 0 16px rgba(0,0,0,0.1) !important; }
+        body[data-sport="ipl"] .hub-battle-labels { color: #64748b !important; }
+        body[data-sport="ipl"] .hub-vote-feedback { background: rgba(0,0,0,0.04) !important; color: #0f172a !important; }
+        body[data-sport="ipl"] .hub-war-alert { background: linear-gradient(90deg, rgba(249,115,22,0.08), rgba(37,99,235,0.05)) !important; border-color: #e2e8f0 !important; color: #0f172a !important; }
+
+        body[data-sport="ipl"] .hub-live-strip { background: linear-gradient(90deg, rgba(22,163,74,0.08), rgba(255,255,255,0.6)) !important; border-color: rgba(22,163,74,0.3) !important; }
+
+        body[data-sport="ipl"] .hub-card { background: #ffffff !important; border-color: #e2e8f0 !important; box-shadow: 0 2px 8px rgba(0,0,0,0.05) !important; }
+        body[data-sport="ipl"] .hub-card-icon {
+          width: 36px !important;
+          height: 36px !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          border-radius: 12px !important;
+          background: color-mix(in srgb, var(--hub-glow) 14%, #ffffff) !important;
+          border: 1px solid color-mix(in srgb, var(--hub-glow) 28%, #dbe5f3) !important;
+          color: var(--hub-glow) !important;
+          font-size: 22px !important;
+          margin-bottom: 10px !important;
+        }
+        body[data-sport="ipl"] .hub-primary-actions .hub-card:nth-child(2) .hub-card-icon {
+          color: transparent !important;
+          position: relative !important;
+        }
+        body[data-sport="ipl"] .hub-primary-actions .hub-card:nth-child(2) .hub-card-icon::before {
+          content: "🎮";
+          position: absolute;
+          color: #16a34a;
+          font-size: 21px;
+        }
+        body[data-sport="ipl"] .hub-card-title { color: #0f172a !important; }
+        body[data-sport="ipl"] .hub-card-sub { color: #64748b !important; }
+        body[data-sport="ipl"] .hub-card-badge { background: #fff7ed !important; border-color: #fed7aa !important; }
+
+        body[data-sport="ipl"] .hub-section-head h3 { color: #0f172a !important; }
+        body[data-sport="ipl"] .hub-section > p { color: #64748b !important; }
+        body[data-sport="ipl"] .hub-fan-name { color: #0f172a !important; }
+        body[data-sport="ipl"] .hub-fan-xp { color: #d97706 !important; }
+        body[data-sport="ipl"] .hub-fan-row { border-bottom-color: #e2e8f0 !important; }
+        body[data-sport="ipl"] .hub-fan-row:last-child { border-bottom: none !important; }
+
+        body[data-sport="ipl"] .growth-studio-ad {
+          background: linear-gradient(135deg, rgba(22,163,74,0.09), #ffffff) !important;
+          border-color: rgba(22,163,74,0.28) !important;
+          color: #0f172a !important;
+          box-shadow: 0 10px 24px rgba(15,23,42,0.06) !important;
+        }
+        body[data-sport="ipl"] .growth-studio-ad span { color: #0f172a !important; }
+        body[data-sport="ipl"] .growth-studio-ad span[style*="color: rgb(74, 222, 128)"],
+        body[data-sport="ipl"] .growth-studio-ad span[style*="color: #4ade80"] {
+          color: #16a34a !important;
+        }
+
+        body[data-sport="ipl"] .edify-promo-card {
+          background: #ffffff !important;
+          border-color: #dbe5f3 !important;
+          box-shadow: 0 10px 24px rgba(15,23,42,0.08) !important;
+        }
+        body[data-sport="ipl"] .edify-promo-label {
+          background: linear-gradient(90deg, rgba(245,158,11,0.09), rgba(37,99,235,0.04)) !important;
+          border-bottom-color: #e2e8f0 !important;
+        }
+        body[data-sport="ipl"] .edify-promo-label-title,
+        body[data-sport="ipl"] .edify-promo-hero-title {
+          color: #d97706 !important;
+        }
+        body[data-sport="ipl"] .edify-promo-label-sub,
+        body[data-sport="ipl"] .edify-promo-lead,
+        body[data-sport="ipl"] .edify-promo-muted,
+        body[data-sport="ipl"] .edify-promo-prize-chips li,
+        body[data-sport="ipl"] .edify-promo-moments li,
+        body[data-sport="ipl"] .edify-promo-rules li,
+        body[data-sport="ipl"] .edify-promo-future-row p,
+        body[data-sport="ipl"] .edify-promo-cta p {
+          color: #475569 !important;
+        }
+        body[data-sport="ipl"] .edify-promo-lead strong,
+        body[data-sport="ipl"] .edify-promo-muted strong,
+        body[data-sport="ipl"] .edify-promo-cta strong {
+          color: #0f172a !important;
+        }
+        body[data-sport="ipl"] .edify-promo-prizes li,
+        body[data-sport="ipl"] .edify-promo-highlight,
+        body[data-sport="ipl"] .edify-promo-featured,
+        body[data-sport="ipl"] .edify-promo-future-teaser {
+          background: #f8fbff !important;
+          border-color: #dbe5f3 !important;
+          color: #0f172a !important;
+        }
+        body[data-sport="ipl"] .edify-promo-prizes li p,
+        body[data-sport="ipl"] .edify-promo-highlight p,
+        body[data-sport="ipl"] .edify-promo-featured p,
+        body[data-sport="ipl"] .edify-promo-future-teaser h4 {
+          color: #0f172a !important;
+        }
+
+        body[data-sport="ipl"] .hub-activity-item { background: #ffffff !important; border-color: #e2e8f0 !important; }
+        body[data-sport="ipl"] .hub-activity-copy strong { color: #0f172a !important; }
+        body[data-sport="ipl"] .hub-activity-copy span { color: #64748b !important; }
+
+        body[data-sport="ipl"] .hub-time-step { background: #ffffff !important; border-color: #e2e8f0 !important; color: #475569 !important; }
+        body[data-sport="ipl"] .hub-time-step-done { color: #0f172a !important; }
+
+        body[data-sport="ipl"] .hub-mission-summary { background: rgba(0,0,0,0.03) !important; border-color: #e2e8f0 !important; }
+        body[data-sport="ipl"] .hub-mission-summary strong { color: #0f172a !important; }
+        body[data-sport="ipl"] .hub-mission-summary span { color: #64748b !important; }
+
+        body[data-sport="ipl"] .hub-games-sheet { background: #ffffff !important; border-color: #e2e8f0 !important; }
+        body[data-sport="ipl"] .react-game-card { background: #f8faff !important; border-color: #e2e8f0 !important; }
+        body[data-sport="ipl"] .react-game-card strong { color: #0f172a !important; }
+        body[data-sport="ipl"] .react-game-card small { color: #64748b !important; }
+
+        body[data-sport="ipl"] .hub-result-close { background: rgba(0,0,0,0.06) !important; border-color: #e2e8f0 !important; color: #475569 !important; }
+
+        body[data-sport="ipl"] .ranks-page { background: #f0f4ff !important; }
+        body[data-sport="ipl"] .ranks-hero { padding-top: 8px !important; }
+        body[data-sport="ipl"] .ranks-hero p { color: #475569 !important; font-weight: 700 !important; }
+        body[data-sport="ipl"] .ranks-row { background: #ffffff !important; border-color: #e2e8f0 !important; }
+        body[data-sport="ipl"] .ranks-row-name { color: #0f172a !important; }
+        body[data-sport="ipl"] .ranks-row-num { color: #94a3b8 !important; }
+        body[data-sport="ipl"] .ranks-tab { background: #ffffff !important; border-color: #cbd5e1 !important; color: #334155 !important; box-shadow: 0 4px 12px rgba(15,23,42,0.04) !important; }
+        body[data-sport="ipl"] .ranks-tab-active { background: linear-gradient(135deg, #7c3aed, #2563eb) !important; border-color: transparent !important; color: #ffffff !important; box-shadow: 0 8px 18px rgba(37,99,235,0.22) !important; }
+        body[data-sport="ipl"] .ranks-title { color: #0f172a !important; }
+        body[data-sport="ipl"] .ranks-my-rank { background: rgba(37,99,235,0.07) !important; border-color: rgba(37,99,235,0.2) !important; color: #475569 !important; }
+        body[data-sport="ipl"] .ranks-my-rank strong { color: #0f172a !important; }
+        body[data-sport="ipl"] .podium-name { color: #0f172a !important; }
+        body[data-sport="ipl"] .podium-xp,
+        body[data-sport="ipl"] .ranks-row-xp-val { color: #d97706 !important; text-shadow: none !important; }
+        body[data-sport="ipl"] .ranks-row-badge { color: #64748b !important; font-weight: 700 !important; }
+        body[data-sport="ipl"] .podium-medal { filter: saturate(1.15); }
+        body[data-sport="ipl"] .podium-bar-1 { background: linear-gradient(180deg, rgba(245,158,11,0.34), rgba(245,158,11,0.12)) !important; border-color: rgba(245,158,11,0.35) !important; }
+        body[data-sport="ipl"] .podium-bar-2 { background: linear-gradient(180deg, rgba(148,163,184,0.34), rgba(148,163,184,0.12)) !important; border-color: rgba(148,163,184,0.35) !important; }
+        body[data-sport="ipl"] .podium-bar-3 { background: linear-gradient(180deg, rgba(249,115,22,0.26), rgba(249,115,22,0.1)) !important; border-color: rgba(249,115,22,0.32) !important; }
+        body[data-sport="ipl"] .activity-row-title { color: #0f172a !important; }
+        body[data-sport="ipl"] .arena-main-profile div { color: #0f172a !important; }
+        body[data-sport="ipl"] .arena-main-profile span { color: #0f172a !important; }
+        body[data-sport="ipl"] .arena-main-referral span { color: #0f172a !important; }
+        body[data-sport="ipl"] .arena-main-referral p { color: #475569 !important; }
+        body[data-sport="ipl"] .arena-main-profile button[style*="linear-gradient"],
+        body[data-sport="ipl"] .arena-main-profile button[style*="linear-gradient"] *,
+        body[data-sport="ipl"] .arena-main-referral button[style*="linear-gradient"],
+        body[data-sport="ipl"] .arena-main-referral button[style*="linear-gradient"] * { color: #ffffff !important; }
+        body[data-sport="ipl"] .arena-main-profile [style*="color: rgb(251"],
+        body[data-sport="ipl"] .arena-main-profile [style*="color: #fbbf24"],
+        body[data-sport="ipl"] .arena-main-referral [style*="color: rgb(251"],
+        body[data-sport="ipl"] .arena-main-referral [style*="color: #fbbf24"] { color: #d97706 !important; }
+        body[data-sport="ipl"] .arena-main-profile [style*="color: rgb(74"],
+        body[data-sport="ipl"] .arena-main-referral [style*="color: rgb(74"] { color: #16a34a !important; }
       `}</style>
       <AuthProvider>
         <MatchProvider slug={slug}>

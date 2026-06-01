@@ -1,6 +1,6 @@
 import { C } from './UI'
 
-const GROWTH_STUDIO_URL = 'https://growthsystems.edifyexternship.com/'
+const GROWTH_STUDIO_URL = 'https://growthsystems.edifyexternship.com/?utm_source=fan_arena&utm_medium=sponsor_ad&utm_campaign=fan_arena_t20&utm_content=growth_studio_banner'
 
 export default function GrowthStudioAd({ onClick }) {
   return (

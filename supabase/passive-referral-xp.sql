@@ -71,11 +71,11 @@ BEGIN
     PERFORM award_xp(NEW.user_id, NEW.match_id, 100, 'correct_vote');
   EXCEPTION WHEN OTHERS THEN NULL; END;
 
-  -- Same XP to whoever referred this voter
+  -- 25% passive XP to whoever referred this voter
   BEGIN
     SELECT referred_by INTO v_referrer_id FROM users WHERE id = NEW.user_id;
     IF v_referrer_id IS NOT NULL THEN
-      PERFORM award_xp(v_referrer_id, NEW.match_id, 100, 'referral_passive', NEW.user_id);
+      PERFORM award_xp(v_referrer_id, NEW.match_id, 25, 'referral_passive', NEW.user_id);
     END IF;
   EXCEPTION WHEN OTHERS THEN NULL; END;
 
@@ -108,7 +108,7 @@ BEGIN
   BEGIN
     SELECT referred_by INTO v_referrer_id FROM users WHERE id = NEW.user_id;
     IF v_referrer_id IS NOT NULL THEN
-      PERFORM award_xp(v_referrer_id, NEW.match_id, 100, 'referral_passive', NEW.user_id);
+      PERFORM award_xp(v_referrer_id, NEW.match_id, 25, 'referral_passive', NEW.user_id);
     END IF;
   EXCEPTION WHEN OTHERS THEN NULL; END;
 
@@ -141,7 +141,7 @@ BEGIN
   BEGIN
     SELECT referred_by INTO v_referrer_id FROM users WHERE id = NEW.user_id;
     IF v_referrer_id IS NOT NULL THEN
-      PERFORM award_xp(v_referrer_id, NEW.match_id, 100, 'referral_passive', NEW.user_id);
+      PERFORM award_xp(v_referrer_id, NEW.match_id, 25, 'referral_passive', NEW.user_id);
     END IF;
   EXCEPTION WHEN OTHERS THEN NULL; END;
 
@@ -198,9 +198,9 @@ GRANT EXECUTE ON FUNCTION public.get_passive_xp_stats(uuid) TO anon, authenticat
 
 -- ═══════════════════════════════════════════════════════════════════
 -- After running this:
---   • Every vote by a referred user   → +100 XP to voter + +100 XP to referrer
---   • Every prediction by referred    → +100 XP to both
---   • Every quiz answer by referred   → +100 XP to both
+--   • Every vote by a referred user   → +100 XP to voter + +25 XP to referrer (25%)
+--   • Every prediction by referred    → +100 XP to voter + +25 XP to referrer (25%)
+--   • Every quiz answer by referred   → +100 XP to voter + +25 XP to referrer (25%)
 --   • Invite tab shows passive XP total + per-friend breakdown
 --   • xp_ledger tracks source_user_id so you can see exactly
 --     which friend triggered each passive XP award

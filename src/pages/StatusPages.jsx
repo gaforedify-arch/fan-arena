@@ -1,7 +1,8 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { C, Btn, FullPageCenter, Pill, LiveDot } from '../components/UI'
 import { useMatch } from '../hooks/useMatch'
 import { navigateArena } from '../lib/hashRouter'
+import { getLastCricketMatch } from '../lib/supabase'
 import TeamLogo from '../components/TeamLogo'
 
 export function formatMatchTime(ts) {
@@ -116,15 +117,22 @@ export function MatchScheduleView({ match, subtitle, onEnter, enterLabel, onRefr
   )
 }
 
-/** Home: no match slug in URL — show next match schedule. */
+/** Home: no match slug in URL — show next cricket match schedule. */
 export function MatchHomePage() {
   const { match, nextMatch, refreshMatch } = useMatch()
-  const m = match || nextMatch
+  const raw = match || nextMatch
+  const [cricketMatch, setCricketMatch] = useState(null)
+
+  // If the next match is IPL (or null), fetch the last cricket match
+  useEffect(() => {
+    if (raw?.sport !== 'ipl' && raw != null) return
+    getLastCricketMatch().then(setCricketMatch).catch(() => {})
+  }, [raw?.sport, raw])
+
+  const m = (raw?.sport !== 'ipl' ? raw : null) || cricketMatch
 
   useEffect(() => {
-    if (m?.slug) {
-      navigateArena(m.slug, 'home')
-    }
+    if (m?.slug) navigateArena(m.slug, 'home')
   }, [m?.slug])
 
   function goToMatch() {

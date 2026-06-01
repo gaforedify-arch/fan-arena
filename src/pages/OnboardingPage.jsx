@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { C, Btn, FullPageCenter } from '../components/UI'
 import { getPendingReferralCode } from '../lib/referral'
+import { trackEvent } from '../lib/analytics'
 
 function goBack() {
   const parts = window.location.hash.replace('#', '').split('/').filter(Boolean)
@@ -59,6 +60,14 @@ export default function OnboardingPage() {
   const [pinLooking, setPinLooking] = useState(false)
 
   function set(key) { return e => setForm(f => ({ ...f, [key]: e.target.value })) }
+
+  useEffect(() => {
+    trackEvent('profile_started', {
+      source: 'onboarding_page',
+      has_referral_code: !!form.refCode,
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Auto-lookup PIN → area name
   useEffect(() => {

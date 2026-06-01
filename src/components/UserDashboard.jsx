@@ -22,7 +22,7 @@ function ActivityRow({ title, sub, meta, color = C.purple }) {
     <div style={{ display: 'flex', gap: 10, padding: '12px 0', borderBottom: `1px solid ${C.border}` }}>
       <span style={{ width: 8, height: 8, marginTop: 5, borderRadius: '50%', background: color, flexShrink: 0 }} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 800, color: '#fff', lineHeight: 1.35 }}>{title}</div>
+        <div className="activity-row-title" style={{ fontSize: 13, fontWeight: 800, color: '#fff', lineHeight: 1.35 }}>{title}</div>
         {sub && <div style={{ fontSize: 11, color: C.muted, marginTop: 3, lineHeight: 1.45 }}>{sub}</div>}
       </div>
       {meta && <div style={{ fontSize: 11, fontWeight: 900, color, textAlign: 'right', flexShrink: 0 }}>{meta}</div>}

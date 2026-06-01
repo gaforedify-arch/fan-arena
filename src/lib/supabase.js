@@ -552,11 +552,38 @@ export async function getNextMatch() {
     }
 }
 
+/** Most relevant non-IPL (cricket) match: live > completed > upcoming. */
+export async function getLastCricketMatch() {
+    const { data } = await supabase
+        .from('matches')
+        .select(`*, team_a:teams!matches_team_a_id_fkey(*), team_b:teams!matches_team_b_id_fkey(*)`)
+        .neq('sport', 'ipl')
+        .order('day_number', { ascending: false })
+        .order('match_number', { ascending: false })
+        .limit(20)
+    if (!data?.length) return null
+    return (
+        data.find(m => m.status === 'live' || m.voting_open) ||
+        data.find(m => m.status === 'completed') ||
+        data[0]
+    )
+}
+
 export async function getAllMatches() {
     const { data, error } = await supabase
         .from('matches')
         .select(`*, team_a:teams!matches_team_a_id_fkey(*), team_b:teams!matches_team_b_id_fkey(*)`)
         .order('day_number').order('match_number')
+    if (error) throw error
+    return data || []
+}
+
+export async function getIPLMatches() {
+    const { data, error } = await supabase
+        .from('matches')
+        .select(`*, team_a:teams!matches_team_a_id_fkey(*), team_b:teams!matches_team_b_id_fkey(*)`)
+        .eq('sport', 'ipl')
+        .order('starts_at')
     if (error) throw error
     return data || []
 }

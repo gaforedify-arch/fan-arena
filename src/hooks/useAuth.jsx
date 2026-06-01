@@ -12,6 +12,7 @@ import {
   consumeAuthHash,
 } from '../lib/supabase'
 import { getPendingReferralCode, clearPendingReferralCode, processReferral } from '../lib/referral'
+import { trackEvent } from '../lib/analytics'
 
 const AuthContext = createContext(null)
 
@@ -129,6 +130,20 @@ export function AuthProvider({ children }) {
     }
     writeCachedProfile(prof)
     setProfile(prof)
+    window.fbq?.('track', 'CompleteRegistration', { status: 'profile_completed' })
+    trackEvent('profile_completed', {
+      user_id: user.id,
+      has_phone: !!phone,
+      has_age: !!age,
+      has_city: !!pin,
+      xp_amount: 900,
+    })
+    trackEvent('xp_earned', {
+      user_id: user.id,
+      xp_amount: 900,
+      reason: 'profile_completed',
+      source: 'onboarding',
+    })
     return prof
   }
 

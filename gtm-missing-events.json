@@ -1,0 +1,457 @@
+{
+  "exportFormatVersion": 2,
+  "exportTime": "2026-05-27 17:00:00",
+  "containerVersion": {
+    "path": "accounts/6356105699/containers/252870242/versions/0",
+    "accountId": "6356105699",
+    "containerId": "252870242",
+    "containerVersionId": "0",
+    "container": {
+      "path": "accounts/6356105699/containers/252870242",
+      "accountId": "6356105699",
+      "containerId": "252870242",
+      "name": "fan-arena-live.edifyexternsh...",
+      "publicId": "GTM-5C93NR82",
+      "usageContext": ["WEB"]
+    },
+    "tag": [
+      {
+        "accountId": "6356105699",
+        "containerId": "252870242",
+        "tagId": "201",
+        "name": "GA4 - Fan Arena Page View",
+        "type": "gaawe",
+        "parameter": [
+          { "type": "TEMPLATE", "key": "measurementIdOverride", "value": "G-DR3Y0NK973" },
+          { "type": "TEMPLATE", "key": "eventName", "value": "fan_arena_page_view" }
+        ],
+        "firingTriggerId": ["101"],
+        "tagFiringOption": "ONCE_PER_EVENT"
+      },
+      {
+        "accountId": "6356105699",
+        "containerId": "252870242",
+        "tagId": "202",
+        "name": "GA4 - Guest Vote Saved",
+        "type": "gaawe",
+        "parameter": [
+          { "type": "TEMPLATE", "key": "measurementIdOverride", "value": "G-DR3Y0NK973" },
+          { "type": "TEMPLATE", "key": "eventName", "value": "fan_arena_guest_vote_saved" }
+        ],
+        "firingTriggerId": ["102"],
+        "tagFiringOption": "ONCE_PER_EVENT"
+      },
+      {
+        "accountId": "6356105699",
+        "containerId": "252870242",
+        "tagId": "203",
+        "name": "GA4 - Login Prompt Shown",
+        "type": "gaawe",
+        "parameter": [
+          { "type": "TEMPLATE", "key": "measurementIdOverride", "value": "G-DR3Y0NK973" },
+          { "type": "TEMPLATE", "key": "eventName", "value": "fan_arena_login_prompt_shown" }
+        ],
+        "firingTriggerId": ["103"],
+        "tagFiringOption": "ONCE_PER_EVENT"
+      },
+      {
+        "accountId": "6356105699",
+        "containerId": "252870242",
+        "tagId": "204",
+        "name": "GA4 - Login Prompt Click",
+        "type": "gaawe",
+        "parameter": [
+          { "type": "TEMPLATE", "key": "measurementIdOverride", "value": "G-DR3Y0NK973" },
+          { "type": "TEMPLATE", "key": "eventName", "value": "fan_arena_login_prompt_click" }
+        ],
+        "firingTriggerId": ["104"],
+        "tagFiringOption": "ONCE_PER_EVENT"
+      },
+      {
+        "accountId": "6356105699",
+        "containerId": "252870242",
+        "tagId": "205",
+        "name": "GA4 - XP Earned",
+        "type": "gaawe",
+        "parameter": [
+          { "type": "TEMPLATE", "key": "measurementIdOverride", "value": "G-DR3Y0NK973" },
+          { "type": "TEMPLATE", "key": "eventName", "value": "xp_earned" }
+        ],
+        "firingTriggerId": ["105"],
+        "tagFiringOption": "ONCE_PER_EVENT"
+      },
+      {
+        "accountId": "6356105699",
+        "containerId": "252870242",
+        "tagId": "206",
+        "name": "GA4 - Profile Started",
+        "type": "gaawe",
+        "parameter": [
+          { "type": "TEMPLATE", "key": "measurementIdOverride", "value": "G-DR3Y0NK973" },
+          { "type": "TEMPLATE", "key": "eventName", "value": "profile_started" }
+        ],
+        "firingTriggerId": ["106"],
+        "tagFiringOption": "ONCE_PER_EVENT"
+      },
+      {
+        "accountId": "6356105699",
+        "containerId": "252870242",
+        "tagId": "207",
+        "name": "GA4 - Profile Completed",
+        "type": "gaawe",
+        "parameter": [
+          { "type": "TEMPLATE", "key": "measurementIdOverride", "value": "G-DR3Y0NK973" },
+          { "type": "TEMPLATE", "key": "eventName", "value": "profile_completed" }
+        ],
+        "firingTriggerId": ["107"],
+        "tagFiringOption": "ONCE_PER_EVENT"
+      },
+      {
+        "accountId": "6356105699",
+        "containerId": "252870242",
+        "tagId": "208",
+        "name": "GA4 - Mission Completed",
+        "type": "gaawe",
+        "parameter": [
+          { "type": "TEMPLATE", "key": "measurementIdOverride", "value": "G-DR3Y0NK973" },
+          { "type": "TEMPLATE", "key": "eventName", "value": "mission_completed" }
+        ],
+        "firingTriggerId": ["108"],
+        "tagFiringOption": "ONCE_PER_EVENT"
+      },
+      {
+        "accountId": "6356105699",
+        "containerId": "252870242",
+        "tagId": "209",
+        "name": "GA4 - Quiz Answer Saved",
+        "type": "gaawe",
+        "parameter": [
+          { "type": "TEMPLATE", "key": "measurementIdOverride", "value": "G-DR3Y0NK973" },
+          { "type": "TEMPLATE", "key": "eventName", "value": "fan_arena_quiz_answer_saved" }
+        ],
+        "firingTriggerId": ["109"],
+        "tagFiringOption": "ONCE_PER_EVENT"
+      },
+      {
+        "accountId": "6356105699",
+        "containerId": "252870242",
+        "tagId": "210",
+        "name": "GA4 - Predict Option Saved",
+        "type": "gaawe",
+        "parameter": [
+          { "type": "TEMPLATE", "key": "measurementIdOverride", "value": "G-DR3Y0NK973" },
+          { "type": "TEMPLATE", "key": "eventName", "value": "fan_arena_predict_option_saved" }
+        ],
+        "firingTriggerId": ["110"],
+        "tagFiringOption": "ONCE_PER_EVENT"
+      },
+      {
+        "accountId": "6356105699",
+        "containerId": "252870242",
+        "tagId": "211",
+        "name": "GA4 - Predictions Submitted",
+        "type": "gaawe",
+        "parameter": [
+          { "type": "TEMPLATE", "key": "measurementIdOverride", "value": "G-DR3Y0NK973" },
+          { "type": "TEMPLATE", "key": "eventName", "value": "fan_arena_predictions_submitted" }
+        ],
+        "firingTriggerId": ["111"],
+        "tagFiringOption": "ONCE_PER_EVENT"
+      },
+      {
+        "accountId": "6356105699",
+        "containerId": "252870242",
+        "tagId": "212",
+        "name": "GA4 - Player Pick Submitted",
+        "type": "gaawe",
+        "parameter": [
+          { "type": "TEMPLATE", "key": "measurementIdOverride", "value": "G-DR3Y0NK973" },
+          { "type": "TEMPLATE", "key": "eventName", "value": "fan_arena_player_pick_submitted" }
+        ],
+        "firingTriggerId": ["112"],
+        "tagFiringOption": "ONCE_PER_EVENT"
+      },
+      {
+        "accountId": "6356105699",
+        "containerId": "252870242",
+        "tagId": "213",
+        "name": "GA4 - Scholarship CTA Clicked",
+        "type": "gaawe",
+        "parameter": [
+          { "type": "TEMPLATE", "key": "measurementIdOverride", "value": "G-DR3Y0NK973" },
+          { "type": "TEMPLATE", "key": "eventName", "value": "scholarship_cta_clicked" }
+        ],
+        "firingTriggerId": ["113"],
+        "tagFiringOption": "ONCE_PER_EVENT"
+      },
+      {
+        "accountId": "6356105699",
+        "containerId": "252870242",
+        "tagId": "214",
+        "name": "GA4 - Sponsor Ad Click",
+        "type": "gaawe",
+        "parameter": [
+          { "type": "TEMPLATE", "key": "measurementIdOverride", "value": "G-DR3Y0NK973" },
+          { "type": "TEMPLATE", "key": "eventName", "value": "fan_arena_sponsor_ad_click" }
+        ],
+        "firingTriggerId": ["114"],
+        "tagFiringOption": "ONCE_PER_EVENT"
+      },
+      {
+        "accountId": "6356105699",
+        "containerId": "252870242",
+        "tagId": "215",
+        "name": "GA4 - Return Session",
+        "type": "gaawe",
+        "parameter": [
+          { "type": "TEMPLATE", "key": "measurementIdOverride", "value": "G-DR3Y0NK973" },
+          { "type": "TEMPLATE", "key": "eventName", "value": "return_session" }
+        ],
+        "firingTriggerId": ["115"],
+        "tagFiringOption": "ONCE_PER_EVENT"
+      }
+    ],
+    "trigger": [
+      {
+        "accountId": "6356105699",
+        "containerId": "252870242",
+        "triggerId": "101",
+        "name": "trigger_fan_arena_page_view",
+        "type": "CUSTOM_EVENT",
+        "customEventFilter": [
+          {
+            "type": "EQUALS",
+            "parameter": [
+              { "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" },
+              { "type": "TEMPLATE", "key": "arg1", "value": "fan_arena_page_view" }
+            ]
+          }
+        ]
+      },
+      {
+        "accountId": "6356105699",
+        "containerId": "252870242",
+        "triggerId": "102",
+        "name": "trigger_fan_arena_guest_vote_saved",
+        "type": "CUSTOM_EVENT",
+        "customEventFilter": [
+          {
+            "type": "EQUALS",
+            "parameter": [
+              { "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" },
+              { "type": "TEMPLATE", "key": "arg1", "value": "fan_arena_guest_vote_saved" }
+            ]
+          }
+        ]
+      },
+      {
+        "accountId": "6356105699",
+        "containerId": "252870242",
+        "triggerId": "103",
+        "name": "trigger_fan_arena_login_prompt_shown",
+        "type": "CUSTOM_EVENT",
+        "customEventFilter": [
+          {
+            "type": "EQUALS",
+            "parameter": [
+              { "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" },
+              { "type": "TEMPLATE", "key": "arg1", "value": "fan_arena_login_prompt_shown" }
+            ]
+          }
+        ]
+      },
+      {
+        "accountId": "6356105699",
+        "containerId": "252870242",
+        "triggerId": "104",
+        "name": "trigger_fan_arena_login_prompt_click",
+        "type": "CUSTOM_EVENT",
+        "customEventFilter": [
+          {
+            "type": "EQUALS",
+            "parameter": [
+              { "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" },
+              { "type": "TEMPLATE", "key": "arg1", "value": "fan_arena_login_prompt_click" }
+            ]
+          }
+        ]
+      },
+      {
+        "accountId": "6356105699",
+        "containerId": "252870242",
+        "triggerId": "105",
+        "name": "trigger_xp_earned",
+        "type": "CUSTOM_EVENT",
+        "customEventFilter": [
+          {
+            "type": "EQUALS",
+            "parameter": [
+              { "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" },
+              { "type": "TEMPLATE", "key": "arg1", "value": "xp_earned" }
+            ]
+          }
+        ]
+      },
+      {
+        "accountId": "6356105699",
+        "containerId": "252870242",
+        "triggerId": "106",
+        "name": "trigger_profile_started",
+        "type": "CUSTOM_EVENT",
+        "customEventFilter": [
+          {
+            "type": "EQUALS",
+            "parameter": [
+              { "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" },
+              { "type": "TEMPLATE", "key": "arg1", "value": "profile_started" }
+            ]
+          }
+        ]
+      },
+      {
+        "accountId": "6356105699",
+        "containerId": "252870242",
+        "triggerId": "107",
+        "name": "trigger_profile_completed",
+        "type": "CUSTOM_EVENT",
+        "customEventFilter": [
+          {
+            "type": "EQUALS",
+            "parameter": [
+              { "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" },
+              { "type": "TEMPLATE", "key": "arg1", "value": "profile_completed" }
+            ]
+          }
+        ]
+      },
+      {
+        "accountId": "6356105699",
+        "containerId": "252870242",
+        "triggerId": "108",
+        "name": "trigger_mission_completed",
+        "type": "CUSTOM_EVENT",
+        "customEventFilter": [
+          {
+            "type": "EQUALS",
+            "parameter": [
+              { "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" },
+              { "type": "TEMPLATE", "key": "arg1", "value": "mission_completed" }
+            ]
+          }
+        ]
+      },
+      {
+        "accountId": "6356105699",
+        "containerId": "252870242",
+        "triggerId": "109",
+        "name": "trigger_fan_arena_quiz_answer_saved",
+        "type": "CUSTOM_EVENT",
+        "customEventFilter": [
+          {
+            "type": "EQUALS",
+            "parameter": [
+              { "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" },
+              { "type": "TEMPLATE", "key": "arg1", "value": "fan_arena_quiz_answer_saved" }
+            ]
+          }
+        ]
+      },
+      {
+        "accountId": "6356105699",
+        "containerId": "252870242",
+        "triggerId": "110",
+        "name": "trigger_fan_arena_predict_option_saved",
+        "type": "CUSTOM_EVENT",
+        "customEventFilter": [
+          {
+            "type": "EQUALS",
+            "parameter": [
+              { "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" },
+              { "type": "TEMPLATE", "key": "arg1", "value": "fan_arena_predict_option_saved" }
+            ]
+          }
+        ]
+      },
+      {
+        "accountId": "6356105699",
+        "containerId": "252870242",
+        "triggerId": "111",
+        "name": "trigger_fan_arena_predictions_submitted",
+        "type": "CUSTOM_EVENT",
+        "customEventFilter": [
+          {
+            "type": "EQUALS",
+            "parameter": [
+              { "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" },
+              { "type": "TEMPLATE", "key": "arg1", "value": "fan_arena_predictions_submitted" }
+            ]
+          }
+        ]
+      },
+      {
+        "accountId": "6356105699",
+        "containerId": "252870242",
+        "triggerId": "112",
+        "name": "trigger_fan_arena_player_pick_submitted",
+        "type": "CUSTOM_EVENT",
+        "customEventFilter": [
+          {
+            "type": "EQUALS",
+            "parameter": [
+              { "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" },
+              { "type": "TEMPLATE", "key": "arg1", "value": "fan_arena_player_pick_submitted" }
+            ]
+          }
+        ]
+      },
+      {
+        "accountId": "6356105699",
+        "containerId": "252870242",
+        "triggerId": "113",
+        "name": "trigger_scholarship_cta_clicked",
+        "type": "CUSTOM_EVENT",
+        "customEventFilter": [
+          {
+            "type": "EQUALS",
+            "parameter": [
+              { "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" },
+              { "type": "TEMPLATE", "key": "arg1", "value": "scholarship_cta_clicked" }
+            ]
+          }
+        ]
+      },
+      {
+        "accountId": "6356105699",
+        "containerId": "252870242",
+        "triggerId": "114",
+        "name": "trigger_fan_arena_sponsor_ad_click",
+        "type": "CUSTOM_EVENT",
+        "customEventFilter": [
+          {
+            "type": "EQUALS",
+            "parameter": [
+              { "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" },
+              { "type": "TEMPLATE", "key": "arg1", "value": "fan_arena_sponsor_ad_click" }
+            ]
+          }
+        ]
+      },
+      {
+        "accountId": "6356105699",
+        "containerId": "252870242",
+        "triggerId": "115",
+        "name": "trigger_return_session",
+        "type": "CUSTOM_EVENT",
+        "customEventFilter": [
+          {
+            "type": "EQUALS",
+            "parameter": [
+              { "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" },
+              { "type": "TEMPLATE", "key": "arg1", "value": "return_session" }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

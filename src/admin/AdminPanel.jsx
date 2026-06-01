@@ -107,6 +107,16 @@ export default function AdminPanel() {
 }
 
 // ── MATCHES SECTION ───────────────────────────────────────────
+const IPL_ROUNDS = [
+  { label: 'Eliminator',  day: 1, match: 1 },
+  { label: 'Qualifier 2', day: 2, match: 1 },
+  { label: 'Final',       day: 3, match: 1 },
+]
+
+function iplRoundLabel(dayNumber) {
+  return IPL_ROUNDS.find(r => r.day === dayNumber)?.label || `Round ${dayNumber}`
+}
+
 function matchFanUrl(slug) {
   return `${window.location.origin}${window.location.pathname}#/match/${slug}`
 }
@@ -122,33 +132,40 @@ function MatchesSection({ matches, teams, reload, flash }) {
   const [creating, setCreating] = useState(false)
   const [saving, setSaving]       = useState(false)
   const [selected, setSelected] = useState(null)
-  const [form, setForm]         = useState({ day_number: '', match_number: '', team_a_id: '', team_b_id: '', starts_at: '' })
+  const [form, setForm]         = useState({ day_number: '', match_number: '', team_a_id: '', team_b_id: '', starts_at: '', sport: 'cricket', ipl_round: 'Eliminator' })
   const [editingMatchId, setEditingMatchId] = useState(null)
-  const [editForm, setEditForm] = useState({ day_number: '', match_number: '', team_a_id: '', team_b_id: '', starts_at: '' })
+  const [editForm, setEditForm] = useState({ day_number: '', match_number: '', team_a_id: '', team_b_id: '', starts_at: '', sport: 'cricket', ipl_round: 'Eliminator' })
 
   function set(k) { return e => setForm(f => ({ ...f, [k]: e.target.value })) }
   function editSet(k) { return e => setEditForm(f => ({ ...f, [k]: e.target.value })) }
 
   async function handleCreate() {
-    if (!form.day_number || !form.match_number || !form.team_a_id || !form.team_b_id) {
-      alert('Please fill in day #, match #, and both teams.')
+    const isIPL = form.sport === 'ipl'
+    if (!isIPL && (!form.day_number || !form.match_number)) {
+      alert('Please fill in day # and match #.')
+      return
+    }
+    if (!form.team_a_id || !form.team_b_id) {
+      alert('Please select both teams.')
       return
     }
     if (form.team_a_id === form.team_b_id) {
       alert('Team A and Team B must be different.')
       return
     }
+    const round = isIPL ? IPL_ROUNDS.find(r => r.label === form.ipl_round) : null
     setSaving(true)
     try {
       const created = await adminCreateMatch({
-        day_number: parseInt(form.day_number, 10),
-        match_number: parseInt(form.match_number, 10),
+        day_number: isIPL ? (round?.day ?? 1) : parseInt(form.day_number, 10),
+        match_number: isIPL ? (round?.match ?? 1) : parseInt(form.match_number, 10),
         team_a_id: form.team_a_id,
         team_b_id: form.team_b_id,
         starts_at: form.starts_at ? new Date(form.starts_at).toISOString() : null,
+        sport: form.sport || 'cricket',
       })
       flash(`Match created! Open: ${created.slug}`)
-      setForm({ day_number: '', match_number: '', team_a_id: '', team_b_id: '', starts_at: '' })
+      setForm({ day_number: '', match_number: '', team_a_id: '', team_b_id: '', starts_at: '', sport: 'cricket', ipl_round: 'Eliminator' })
       setCreating(false)
       reload()
     } catch (e) {
@@ -193,25 +210,34 @@ function MatchesSection({ matches, teams, reload, flash }) {
       team_a_id: match.team_a_id || '',
       team_b_id: match.team_b_id || '',
       starts_at: toDateTimeLocal(match.starts_at),
+      sport: match.sport || 'cricket',
+      ipl_round: match.sport === 'ipl' ? (iplRoundLabel(match.day_number)) : 'Eliminator',
     })
   }
 
   async function saveMatchEdit(match) {
-    if (!editForm.day_number || !editForm.match_number || !editForm.team_a_id || !editForm.team_b_id) {
-      alert('Please fill in day #, match #, and both teams.')
+    const isIPL = editForm.sport === 'ipl'
+    if (!isIPL && (!editForm.day_number || !editForm.match_number)) {
+      alert('Please fill in day # and match #.')
+      return
+    }
+    if (!editForm.team_a_id || !editForm.team_b_id) {
+      alert('Please select both teams.')
       return
     }
     if (editForm.team_a_id === editForm.team_b_id) {
       alert('Team A and Team B must be different.')
       return
     }
+    const round = isIPL ? IPL_ROUNDS.find(r => r.label === editForm.ipl_round) : null
     try {
       await adminUpdateMatch(match.id, {
-        day_number: parseInt(editForm.day_number, 10),
-        match_number: parseInt(editForm.match_number, 10),
+        day_number: isIPL ? (round?.day ?? 1) : parseInt(editForm.day_number, 10),
+        match_number: isIPL ? (round?.match ?? 1) : parseInt(editForm.match_number, 10),
         team_a_id: editForm.team_a_id,
         team_b_id: editForm.team_b_id,
         starts_at: editForm.starts_at ? new Date(editForm.starts_at).toISOString() : null,
+        sport: editForm.sport || 'cricket',
       })
       setEditingMatchId(null)
       flash('Match updated')
@@ -264,10 +290,26 @@ function MatchesSection({ matches, teams, reload, flash }) {
       {creating && (
         <GlassCard style={{ marginBottom: 16 }}>
           <SectionLabel>Create New Match</SectionLabel>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <Input label="Day #" type="number" value={form.day_number} onChange={set('day_number')} placeholder="1" />
-            <Input label="Match #" type="number" value={form.match_number} onChange={set('match_number')} placeholder="1" />
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: 'block', fontSize: 11, color: C.muted, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8, fontWeight: 700 }}>Sport</label>
+            <select value={form.sport} onChange={set('sport')} style={selectStyle}>
+              <option value="cricket">Cricket (Fan Arena)</option>
+              <option value="ipl">T20 Playoffs</option>
+            </select>
           </div>
+          {form.sport === 'ipl' ? (
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 11, color: C.muted, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8, fontWeight: 700 }}>Round</label>
+              <select value={form.ipl_round} onChange={set('ipl_round')} style={selectStyle}>
+                {IPL_ROUNDS.map(r => <option key={r.label} value={r.label}>{r.label}</option>)}
+              </select>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <Input label="Day #" type="number" value={form.day_number} onChange={set('day_number')} placeholder="1" />
+              <Input label="Match #" type="number" value={form.match_number} onChange={set('match_number')} placeholder="1" />
+            </div>
+          )}
           <div style={{ marginBottom: 12 }}>
             <label style={{ display: 'block', fontSize: 11, color: C.muted, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8, fontWeight: 700 }}>Team A</label>
             <select value={form.team_a_id} onChange={set('team_a_id')} style={selectStyle}>
@@ -292,7 +334,10 @@ function MatchesSection({ matches, teams, reload, flash }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
             <div>
               <div style={{ fontSize: 13, fontWeight: 900, color: '#fff' }}>
-                Day {match.day_number} · Match {match.match_number}
+                {match.sport === 'ipl'
+                  ? <span style={{ color: '#0ea5e9' }}>IPL · {iplRoundLabel(match.day_number)}</span>
+                  : `Day ${match.day_number} · Match ${match.match_number}`
+                }
               </div>
               <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', marginTop: 2 }}>
                 {match.team_a?.short_name || 'TBA'} vs {match.team_b?.short_name || 'TBA'}
@@ -306,6 +351,9 @@ function MatchesSection({ matches, teams, reload, flash }) {
                   {match.slug}
                 </button>
                 {' · '}<span style={{ color: statusColor[match.status] }}>{match.status}</span>
+                {match.sport && match.sport !== 'cricket' && (
+                  <span style={{ marginLeft: 6, color: '#0ea5e9', fontWeight: 900 }}>· T20 Playoffs</span>
+                )}
               </div>
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
@@ -335,10 +383,20 @@ function MatchesSection({ matches, teams, reload, flash }) {
           {editingMatchId === match.id && (
             <div style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, marginBottom: 12 }}>
               <SectionLabel>Edit Match</SectionLabel>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
-                <input type="number" placeholder="Day #" value={editForm.day_number} onChange={editSet('day_number')} style={inpStyle} />
-                <input type="number" placeholder="Match #" value={editForm.match_number} onChange={editSet('match_number')} style={inpStyle} />
-              </div>
+              <select value={editForm.sport} onChange={editSet('sport')} style={{ ...selectStyle, marginBottom: 8 }}>
+                <option value="cricket">Cricket (Fan Arena)</option>
+                <option value="ipl">T20 Playoffs</option>
+              </select>
+              {editForm.sport === 'ipl' ? (
+                <select value={editForm.ipl_round} onChange={editSet('ipl_round')} style={{ ...selectStyle, marginBottom: 8 }}>
+                  {IPL_ROUNDS.map(r => <option key={r.label} value={r.label}>{r.label}</option>)}
+                </select>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                  <input type="number" placeholder="Day #" value={editForm.day_number} onChange={editSet('day_number')} style={inpStyle} />
+                  <input type="number" placeholder="Match #" value={editForm.match_number} onChange={editSet('match_number')} style={inpStyle} />
+                </div>
+              )}
               <select value={editForm.team_a_id} onChange={editSet('team_a_id')} style={{ ...selectStyle, marginBottom: 8 }}>
                 <option value="">Select team A</option>
                 {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}

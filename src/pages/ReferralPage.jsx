@@ -31,7 +31,7 @@ export default function ReferralPage({ match }) {
   const [shareErr, setShareErr]       = useState('')
 
   const refCode = profile?.ref_code || stats?.ref_code || ''
-  const referralLink = refCode ? buildReferralLink(refCode, slug) : ''
+  const referralLink = refCode ? buildReferralLink(refCode, slug, 'referral_page') : ''
   const bonusActive = isBonusWindow(tournamentEnd)
 
   useEffect(() => {
@@ -120,12 +120,30 @@ export default function ReferralPage({ match }) {
       )}
 
       {/* Header */}
-      <div style={{ textAlign: 'center', marginBottom: 20 }}>
+      <div style={{ textAlign: 'center', marginBottom: 16 }}>
         <div style={{ fontSize: 38, marginBottom: 8 }}>🔗</div>
         <h2 style={{ margin: '0 0 4px', color: '#fff', fontSize: 22, fontWeight: 900 }}>Invite & Earn</h2>
         <p style={{ margin: 0, color: C.muted, fontSize: 12, lineHeight: 1.6 }}>
           Invite friends · Earn {bonusActive ? '400' : '200'} XP per referral{bonusActive ? ' (2× bonus!)' : ''}
         </p>
+      </div>
+
+      {/* Your referral stats — friends, XP, passive XP */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
+        {[
+          { label: 'Friends referred', value: stats?.referred_count ?? 0,             color: C.purple, icon: '👥' },
+          { label: 'Referral XP',      value: `+${stats?.xp_earned ?? 0}`,            color: C.yellow, icon: '⭐' },
+          { label: 'Passive XP',       value: `+${passiveStats?.total_passive_xp ?? 0}`, color: C.green, icon: '⚡' },
+        ].map(item => (
+          <div key={item.label} style={{
+            background: C.card, border: `1px solid ${C.border}`,
+            borderRadius: 16, padding: '14px 10px', textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 20, marginBottom: 5 }}>{item.icon}</div>
+            <div style={{ fontSize: 20, fontWeight: 900, color: item.color, lineHeight: 1 }}>{item.value}</div>
+            <div style={{ fontSize: 9, color: C.muted, marginTop: 4, fontWeight: 700, lineHeight: 1.3 }}>{item.label}</div>
+          </div>
+        ))}
       </div>
 
       {/* How it works — visual explainer */}
@@ -238,24 +256,6 @@ export default function ReferralPage({ match }) {
           📲 Share with friends
         </button>
         {shareErr && <p style={{ margin: '8px 0 0', color: C.red, fontSize: 11, textAlign: 'center' }}>{shareErr}</p>}
-      </div>
-
-      {/* Your stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 14 }}>
-        {[
-          { label: 'Friends referred', value: stats?.referred_count ?? 0,                          color: C.purple, icon: '👥' },
-          { label: 'Referral XP',      value: `+${stats?.xp_earned ?? 0}`,                         color: C.yellow, icon: '⭐' },
-          { label: 'Passive XP',       value: `+${passiveStats?.total_passive_xp ?? 0}`,            color: C.green,  icon: '⚡' },
-        ].map(item => (
-          <div key={item.label} style={{
-            background: C.card, border: `1px solid ${C.border}`,
-            borderRadius: 16, padding: '14px 10px', textAlign: 'center',
-          }}>
-            <div style={{ fontSize: 20, marginBottom: 5 }}>{item.icon}</div>
-            <div style={{ fontSize: 20, fontWeight: 900, color: item.color, lineHeight: 1 }}>{item.value}</div>
-            <div style={{ fontSize: 9, color: C.muted, marginTop: 4, fontWeight: 700, lineHeight: 1.3 }}>{item.label}</div>
-          </div>
-        ))}
       </div>
 
       {/* Friends activity — passive XP breakdown */}
